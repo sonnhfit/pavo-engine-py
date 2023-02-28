@@ -1,0 +1,57 @@
+version: '3'
+
+
+
+services:
+    db:
+      image: postgres:latest
+      restart: always
+      environment:
+        POSTGRES_PASSWORD: example
+    # Redis
+    redis:
+        image: redis:latest
+        hostname: redis
+
+    # RabbitMQ
+    rabbit:
+        hostname: rabbit
+        image: bitnami/rabbitmq:latest
+        environment:
+            - RABBITMQ_USERNAME=admin
+            - RABBITMQ_PASSWORD=mypass
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+
+    web:
+
+      build:
+        context: ./web
+        dockerfile: ./Dockerfile
+      container_name: api-server
+      volumes:
+        - ./web:/app/web
+      ports:
+        - "8000:8000"
+
+      depends_on:
+        - db
+        - redis
+        - rabbit
+      command: gunicorn config.wsgi --workers 4 -b 0.0.0.0:8000
+
+    pavo:
+      restart: always
+      build:
+        context: ./pavo
+        dockerfile: ./Dockerfile
+      container_name: pavo-server
+      volumes:
+        - ./pavo:/app/pavo
+      depends_on:
+        - db
+        - redis
+        - rabbit
+        - web
+      command: python main.py
