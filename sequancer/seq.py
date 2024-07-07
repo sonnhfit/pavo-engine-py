@@ -66,7 +66,7 @@ class Strip:
             .output('pipe:', vframes=1, format='image2', vcodec='mjpeg')
             .run(capture_stdout=True)
         )
-        path_n = f"temp/temp-{frame}-{self.track_id}-{int(time.time())}.jpg"
+        path_n = f"./temp/temp-{frame}-{self.track_id}-{int(time.time())}.jpg"
         with open(path_n, "wb") as binary_file:
             binary_file.write(out)
 
