@@ -84,6 +84,8 @@ class Strip:
         elif self.type == "video":
             vid = self.read_video_by_frame(frame, temp_dir)
             return vid
+        elif self.type == "text":
+            return None
         else:
             return None
 
