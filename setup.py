@@ -18,4 +18,10 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.9',
+    install_requires=[
+        'ffmpeg-python==0.2.0',
+        'requests==2.32.3',
+        'retrying==1.3.4',
+        'tqdm==4.66.4'
+    ]
 )
