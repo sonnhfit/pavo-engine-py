@@ -50,6 +50,20 @@
                         "transition": {
                             "out": "fade"
                         }
+                    },
+                    {
+                        "asset": {
+                            "type": "text",
+                            "src": "",
+                            "text": "Hello World"
+                        },
+                        "start": 17,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "slideDown",
+                        "transition": {
+                            "out": "fade"
+                        }
                     }
                 ]
             },
@@ -90,7 +104,7 @@
         "format": "mp4",
         "resolution": "sd",
         "fps": 30,
-        "width": 1920,
+        "width": 640,
         "height": 1080
     }
 }
