@@ -1,5 +1,5 @@
 import json
-from sequancer.seq import Sequence, Strip
+from pavo.sequancer.seq import Sequence, Strip
 
 
 def read_json_video(file_path):

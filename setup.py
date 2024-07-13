@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
  
 setuptools.setup(
-    name="hive",
+    name="pavo",
     version="0.0.1",
     author="Son Nguyen",
     author_email="sonnhfit@gmail.com",

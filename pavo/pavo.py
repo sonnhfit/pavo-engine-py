@@ -1,6 +1,6 @@
 import os
 import ffmpeg
-from sequancer.render import render
+from pavo.sequancer.render import render
 
 
 def clear_temp(temp_dir="temp"):
@@ -24,7 +24,7 @@ def render_video_from_strips(list_strip, output="output.mp4", temp_dir="render_t
     )
 
     clear_temp(temp_dir=temp_dir)
-    
+
 
 def render_video(
     video_json, output="output.mp4"
