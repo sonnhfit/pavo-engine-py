@@ -10,13 +10,14 @@ from typing import (
     Generic,
     Type,
 )
-import numpy as np
+# import numpy as np
 # import cv2 as cv
 import ffmpeg
 import os
 import sys
 import time
 import glob
+
 
 class Effect:
     def __init__(self):
