@@ -1,6 +1,7 @@
 import os
 import ffmpeg
 from pavo.sequancer.render import render
+from pavo.preparation.preparetion import create_asset_tmp
 
 
 def clear_temp(temp_dir="temp"):
@@ -46,3 +47,10 @@ def render_video(
     list_strip = render(video_json, video_temp_dir)
     render_video_from_strips(list_strip, output, render_temp_dir)
     clear_temp(temp_dir=video_temp_dir)
+
+
+def json_video_render(json_file, output_file):
+    output_dir = os.path.dirname(output_file)
+    create_asset_tmp(json_file, output_dir)
+    render_video(json_file, output_file)
+    return output_file
