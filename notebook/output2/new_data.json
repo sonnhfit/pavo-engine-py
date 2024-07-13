@@ -1,0 +1,92 @@
+{
+    "timeline": {
+        "n_frames": 30,
+        "soundtrack": {
+            "src": "https://s3-ap-southeast-2.amazonaws.com/shotstack-assets/music/freeflow.mp3",
+            "effect": "fadeOut"
+        },
+        "background": "#000000",
+        "tracks": [
+            {
+                "track_id": 0,
+                "strips": [
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "/Users/admin/Desktop/pavo-engine-py/notebook/output2/timeline/track_1/image/image_1.jpg"
+                        },
+                        "start": 0,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "video",
+                            "src": "/Users/admin/Desktop/pavo-engine-py/notebook/output2/timeline/track_1/video/video_2.mp4"
+                        },
+                        "start": 3,
+                        "video_start_frame": 0,
+                        "length": 10,
+                        "effect": "slideUp",
+                        "transition": {
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "video",
+                            "src": "/Users/admin/Desktop/pavo-engine-py/notebook/output2/timeline/track_1/video/video_3.mp4"
+                        },
+                        "start": 17,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "slideDown",
+                        "transition": {
+                            "out": "fade"
+                        }
+                    }
+                ]
+            },
+            {
+                "track_id": 1,
+                "strips": [
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "/Users/admin/Desktop/pavo-engine-py/notebook/output2/timeline/track_2/image/image_1.jpg"
+                        },
+                        "start": 10,
+                        "video_start_frame": 0,
+                        "length": 15,
+                        "effect": "slideLeft",
+                        "transition": {
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "/Users/admin/Desktop/pavo-engine-py/notebook/output2/timeline/track_2/image/image_2.jpg"
+                        },
+                        "start": 12,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomOut",
+                        "transition": {
+                            "out": "fade"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "output": {
+        "format": "mp4",
+        "resolution": "sd"
+    }
+}

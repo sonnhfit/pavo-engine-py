@@ -11,7 +11,7 @@ from typing import (
     Type,
 )
 import numpy as np
-import cv2 as cv
+# import cv2 as cv
 import ffmpeg
 import os
 import sys
@@ -57,7 +57,7 @@ class Strip:
     def read_video(self):
         pass
 
-    def read_video_by_frame(self, frame: int):
+    def read_video_by_frame(self, frame: int, temp_dir: str = "./temp"):
 
         out, err = (
             ffmpeg
@@ -66,7 +66,7 @@ class Strip:
             .output('pipe:', vframes=1, format='image2', vcodec='mjpeg')
             .run(capture_stdout=True)
         )
-        path_n = f"./temp/temp-{frame}-{self.track_id}-{int(time.time())}.jpg"
+        path_n = f"{temp_dir}/temp-{frame}-{self.track_id}-{int(time.time())}.jpg"
         with open(path_n, "wb") as binary_file:
             binary_file.write(out)
 
@@ -76,12 +76,12 @@ class Strip:
     def init_strip(self):
         pass
 
-    def get_frame(self, frame: int):
+    def get_frame(self, frame: int, temp_dir: str = "./temp"):
         if self.type == "image":
             im = self.read_image()
             return im
         elif self.type == "video":
-            vid = self.read_video_by_frame(frame)
+            vid = self.read_video_by_frame(frame, temp_dir)
             return vid
         else:
             return None
@@ -99,18 +99,19 @@ class Strip:
 
 # một sequence
 class Sequence:
-    def __init__(self, strips: List[Strip] = [], n_frame: int = 0):
+    def __init__(self, strips: List[Strip] = [], n_frame: int = 0, temp_dir="temp"):
         self.n_frame = n_frame
         self.fps = 30  # 30 frame per second
         self.final_frame_cache = []
         self.strips: List[Strip] = strips
+        self.temp_dir = temp_dir
 
         self.strips_dict_by_frame = {}
         self.img_dict_by_frame = {}
         self.init_temp()
 
     def init_temp(self):
-        files = glob.glob('temp/*')
+        files = glob.glob(f'{self.temp_dir}/*')
         for f in files:
             os.remove(f)
 
@@ -159,9 +160,9 @@ class Sequence:
         img = None
         for strip in strips:
             if img is None:
-                img = strip.get_frame(frame)
+                img = strip.get_frame(frame, self.temp_dir)
             else:
-                img = self.overlay(img, strip.get_frame(frame))
+                img = self.overlay(img, strip.get_frame(frame, self.temp_dir))
         return img
 
     def render_strips(self, strips: List[Strip], frame: int):
