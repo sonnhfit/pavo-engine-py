@@ -8,7 +8,7 @@ def main():
     # )
     json_video_render(
         '/Users/admin/Desktop/pavo-engine-py/docs/data2.json',
-        '/Users/admin/Desktop/pavo-engine-py/output3/output2.mp4'
+        '/Users/admin/Desktop/pavo-engine-py/vinhdemo/vinh.mp4'
     )
 
 

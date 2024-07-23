@@ -1,7 +1,7 @@
 import os
 import ffmpeg
 from pavo.sequancer.render import render
-from pavo.preparation.preparetion import create_asset_tmp
+from pavo.preparation.preparetion import create_asset_tmp, create_asset_tmp_s3
 
 
 def clear_temp(temp_dir="temp"):
@@ -27,9 +27,7 @@ def render_video_from_strips(list_strip, output="output.mp4", temp_dir="render_t
     clear_temp(temp_dir=temp_dir)
 
 
-def render_video(
-    video_json, output="output.mp4"
-):
+def render_video(video_json, output="output.mp4"):
     #  temp_dir="render_temp", video_temp_dir="temp_dir"
     # '/Users/admin/Desktop/pavo-engine-py/render_temp',
     # '/Users/admin/Desktop/pavo-engine-py/temp'
@@ -52,5 +50,14 @@ def render_video(
 def json_video_render(json_file, output_file):
     output_dir = os.path.dirname(output_file)
     create_asset_tmp(json_file, output_dir)
+    render_video(json_file, output_file)
+    return output_file
+
+
+def json_render_with_s3_asset(
+    json_file, output_file, s3_bucket, s3_acess_key, s3_secret_key
+):
+    output_dir = os.path.dirname(output_file)
+    create_asset_tmp_s3(json_file, output_dir, s3_bucket, s3_acess_key, s3_secret_key)
     render_video(json_file, output_file)
     return output_file
