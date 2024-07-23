@@ -11,12 +11,13 @@ def clear_temp(temp_dir="temp"):
 
 
 def render_video_from_strips(list_strip, output="output.mp4", temp_dir="render_temp"):
+    print("-----oujtput", output)
     for i, strip in enumerate(list_strip):
         if strip is not None:
             print(f"Processing frame {i}...")
             if os.path.exists(f"{temp_dir}/im-{i}.jpg"):
                 os.remove(f"{temp_dir}/im-{i}.jpg")
-
+            # print(
             strip.output(f"{temp_dir}/im-{i}.jpg").run(capture_stdout=True)
     (
         ffmpeg.input(f"{temp_dir}/*.jpg", pattern_type="glob", framerate=25)
@@ -58,6 +59,6 @@ def json_render_with_s3_asset(
     json_file, output_file, s3_bucket, s3_acess_key, s3_secret_key
 ):
     output_dir = os.path.dirname(output_file)
-    create_asset_tmp_s3(json_file, output_dir, s3_bucket, s3_acess_key, s3_secret_key)
-    render_video(json_file, output_file)
+    json_new_path = create_asset_tmp_s3(json_file, output_dir, s3_bucket, s3_acess_key, s3_secret_key)
+    render_video(json_new_path, output_file)
     return output_file

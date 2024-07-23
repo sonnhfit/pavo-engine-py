@@ -13,7 +13,7 @@
                     {
                         "asset": {
                             "type": "image",
-                            "src": "https://h5p.org/sites/default/files/h5p/content/1209180/images/file-6113d5f8845dc.jpeg"
+                            "src": "image_upload/2024/07/20/mctayxrtnndneehyovfn-1721485881.523992-IMG_5879.JPG"
                         },
                         "start": 0,
                         "video_start_frame": 0,
@@ -21,64 +21,6 @@
                         "effect": "zoomIn",
                         "transition": {
                             "in": "fade",
-                            "out": "fade"
-                        }
-                    },
-                    {
-                        "asset": {
-                            "type": "video",
-                            "src": "https://file-examples.com/storage/fe0e9b723466913cf9611b7/2017/04/file_example_MP4_480_1_5MG.mp4"
-                        },
-                        "start": 3,
-                        "video_start_frame": 0,
-                        "length": 10,
-                        
-                        "effect": "slideUp",
-                        "transition": {
-                            "out": "fade"
-                        }
-                    },
-                    {
-                        "asset": {
-                            "type": "video",
-                            "src": "https://file-examples.com/storage/fe0e9b723466913cf9611b7/2017/04/file_example_MP4_480_1_5MG.mp4"
-                        },
-                        "start": 17,
-                        "video_start_frame": 0,
-                        "length": 5,
-                        "effect": "slideDown",
-                        "transition": {
-                            "out": "fade"
-                        }
-                    }
-                ]
-            },
-            {
-                "track_id": 1,
-                "strips": [
-                    {
-                        "asset": {
-                            "type": "image",
-                            "src": "https://d38b044pevnwc9.cloudfront.net/cutout-nuxt/enhancer/2.jpg"
-                        },
-                        "start": 10,
-                        "video_start_frame": 0,
-                        "length": 15,
-                        "effect": "slideLeft",
-                        "transition": {
-                            "out": "fade"
-                        }
-                    },
-                    {
-                        "asset": {
-                            "type": "image",
-                            "src": "https://d3phaj0sisr2ct.cloudfront.net/site/images/tools/thumbnails/reviewed/upscale+image.png"
-                        },
-                        "start": 12,
-                        "video_start_frame": 0,
-                        "length": 5,
-                        "effect": "zoomOut",
-                        "transition": {
                             "out": "fade"
                         }
                     }

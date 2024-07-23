@@ -177,12 +177,14 @@ def create_directory_structure_s3(
             if asset_type == "video":
                 # Tải và lưu tệp tin video vào thư mục video
                 output_path = os.path.join(video_dir, f"video_{j+1}.mp4")
+                
                 download_file_from_s3(
                     asset_src, bucket, output_path, s3_acess_key, s3_secret_key
                 )
             elif asset_type == "image":
                 # Tải và lưu tệp tin ảnh vào thư mục image
                 output_path = os.path.join(image_dir, f"image_{j+1}.jpg")
+                print(f"Downloading video {asset_src} to {output_path}")
                 download_file_from_s3(
                     asset_src, bucket, output_path, s3_acess_key, s3_secret_key
                 )
@@ -212,6 +214,8 @@ def create_new_json(json_file, output_folder):
     with open(new_json_file, "w") as file:
         json.dump(data, file, indent=4)
 
+    return new_json_file
+
 
 def create_asset_tmp(json_file, output_folder):
     create_directory_structure(json_file, output_folder)
@@ -228,4 +232,5 @@ def create_asset_tmp_s3(
     create_directory_structure_s3(
         json_file, output_folder, bucket, s3_acess_key, s3_secret_key
     )
-    create_new_json(json_file, output_folder)
+    json_new_path = create_new_json(json_file, output_folder)
+    return json_new_path
