@@ -11,7 +11,6 @@ def clear_temp(temp_dir="temp"):
 
 
 def render_video_from_strips(list_strip, output="output.mp4", temp_dir="render_temp"):
-    print("-----oujtput", output)
     for i, strip in enumerate(list_strip):
         if strip is not None:
             print(f"Processing frame {i}...")

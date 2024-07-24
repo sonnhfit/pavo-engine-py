@@ -6,6 +6,7 @@ import json
 import os
 import logging
 import boto3
+from PIL import Image
 
 
 def download_video(url, destination, retries=5, chunk_size=1024):
@@ -134,6 +135,26 @@ def create_directory_structure(json_file, output_folder):
                 download_image(asset_src, output_path)
 
 
+# Kiểm tra và chuyển đổi kích thước hình ảnh
+def check_and_convert_image(image_path):
+    image = Image.open(image_path)
+    width, height = image.size
+
+    # Kiểm tra nếu chiều cao không chia hết cho 2
+    if height % 2 != 0:
+        # Chuyển đổi kích thước hình ảnh để chiều cao chia hết cho 2
+        new_height = height - 1
+        new_image = image.resize((width, new_height))
+        
+        # Lưu hình ảnh mới
+        new_image_path = image_path.replace(".jpg", "_converted.jpg")
+        new_image.save(new_image_path)
+        
+        return new_image_path
+    else:
+        return image_path
+
+
 def create_directory_structure_s3(
     json_file,
     output_folder,
@@ -177,6 +198,7 @@ def create_directory_structure_s3(
             if asset_type == "video":
                 # Tải và lưu tệp tin video vào thư mục video
                 output_path = os.path.join(video_dir, f"video_{j+1}.mp4")
+                print(f"Downloading video {asset_src} to {output_path}")
                 
                 download_file_from_s3(
                     asset_src, bucket, output_path, s3_acess_key, s3_secret_key
@@ -184,10 +206,17 @@ def create_directory_structure_s3(
             elif asset_type == "image":
                 # Tải và lưu tệp tin ảnh vào thư mục image
                 output_path = os.path.join(image_dir, f"image_{j+1}.jpg")
-                print(f"Downloading video {asset_src} to {output_path}")
+                print(f"Downloading image {asset_src} to {output_path}")
                 download_file_from_s3(
                     asset_src, bucket, output_path, s3_acess_key, s3_secret_key
                 )
+                
+                # Kiểm tra và chuyển đổi kích thước hình ảnh
+                converted_image_path = check_and_convert_image(output_path)
+                if converted_image_path != output_path:
+                    print(f"Image size converted: {output_path} -> {converted_image_path}")
+                    os.remove(output_path)  # Xóa hình ảnh gốc
+                    os.rename(converted_image_path, output_path)  # Ghi đè ảnh đã convert vào ảnh gốc
 
 
 def create_new_json(json_file, output_folder):

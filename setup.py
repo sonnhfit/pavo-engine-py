@@ -24,6 +24,7 @@ setuptools.setup(
         'retrying==1.3.4',
         'tqdm==4.66.4',
         'botocore==1.29.109',
-        'boto3==1.26.109'
+        'boto3==1.26.109',
+        'pillow==10.4.0'
     ]
 )

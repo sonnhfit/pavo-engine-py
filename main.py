@@ -17,11 +17,13 @@ def main():
     S3_SECRET_KEY = 't9D19YLkkCVxqEl234SLf9pZIC6Ebd0HQaGoOJcS'
 
 
-    json_render_with_s3_asset(
-        '/Users/admin/Desktop/pavo-engine-py/docs/data3.json',
-        '/Users/admin/Desktop/pavo-engine-py/vinhdemo/vinh.mp4',
+    out = json_render_with_s3_asset(
+        '/Users/admin/Desktop/pavo-engine-py/docs/data4.json',
+        '/Users/admin/Desktop/pavo-engine-py/vinhdemo2/vinh.mp4',
         S3_BUCKET_RESOURCE, S3_ACESS_KEY, S3_SECRET_KEY
     )
+    print("output is: ")
+    print(out)
 
 
 if __name__ == '__main__':

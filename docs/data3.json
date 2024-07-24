@@ -1,6 +1,6 @@
 {
     "timeline": {
-        "n_frames": 30,
+        "n_frames": 750,
         "soundtrack": {
             "src": "https://s3-ap-southeast-2.amazonaws.com/shotstack-assets/music/freeflow.mp3",
             "effect": "fadeOut"
@@ -23,8 +23,68 @@
                             "in": "fade",
                             "out": "fade"
                         }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "image_upload/2024/07/20/mctayxrtnndneehyovfn-1721485881.523992-IMG_5879.JPG"
+                        },
+                        "start": 5,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "image_upload/2024/07/20/owiqwtvimbrcmfooqqbw-1721486097.1938567-ladybug-8096165.jpg"
+                        },
+                        "start": 10,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "image_upload/2024/07/20/mctayxrtnndneehyovfn-1721485881.523992-IMG_5879.JPG"
+                        },
+                        "start": 15,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "image_upload/2024/07/20/mctayxrtnndneehyovfn-1721485881.523992-IMG_5879.JPG"
+                        },
+                        "start": 20,
+                        "video_start_frame": 0,
+                        "length": 5,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
                     }
                 ]
+            },
+            {
+                "track_id": 1,
+                "strips": []
             }
         ]
     },
