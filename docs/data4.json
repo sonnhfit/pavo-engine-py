@@ -1,8 +1,8 @@
 {
     "timeline": {
-        "n_frames": 150,
+        "n_frames": 250,
         "soundtrack": {
-            "src": "https://s3-ap-southeast-2.amazonaws.com/shotstack-assets/music/freeflow.mp3",
+            "src": "https: //s3-ap-southeast-2.amazonaws.com/shotstack-assets/music/freeflow.mp3",
             "effect": "fadeOut"
         },
         "background": "#000000",
@@ -13,11 +13,25 @@
                     {
                         "asset": {
                             "type": "image",
-                            "src": "image_upload/2024/07/21/qrjektgigrewiyihiugh-1721534540.7494395-bear-8845470.jpg"
+                            "src": "image_upload/2024/07/20/owiqwtvimbrcmfooqqbw-1721486097.1938567-ladybug-8096165.jpg"
                         },
                         "start": 0,
                         "video_start_frame": 0,
-                        "length": 5,
+                        "length": 125,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade"
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "image_upload/2024/07/21/qrjektgigrewiyihiugh-1721534540.7494395-bear-8845470.jpg"
+                        },
+                        "start": 125,
+                        "video_start_frame": 0,
+                        "length": 250,
                         "effect": "zoomIn",
                         "transition": {
                             "in": "fade",
