@@ -7,3 +7,4 @@ boto3==1.26.109
 pillow==10.4.0
 openai-whisper>=20230314
 ultralytics
+scenedetect[opencv]>=0.6.2
