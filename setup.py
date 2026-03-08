@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
  
 setuptools.setup(
     name="pavo",
-    version="0.0.1",
+    version="0.2.0",
     author="Son Nguyen",
     author_email="sonnhfit@gmail.com",
     description="Package to create pavo",

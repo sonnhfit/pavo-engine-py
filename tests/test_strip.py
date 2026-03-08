@@ -1,5 +1,5 @@
 import pytest
-from sequancer.seq import Strip, Sequence
+from pavo.sequancer.seq import Strip, Sequence
 
 
 strip1 = Strip(start_frame=0)

@@ -36,9 +36,82 @@ from pavo import render_video
 
 # Render a video from JSON timeline
 render_video(
-    'docs/data.json',          # Timeline configuration
-    'output/video.mp4'         # Output file
+    'docs/data.json',      # Timeline configuration (JSON path)
+    'output/video.mp4'     # Output MP4 file
 )
+```
+
+### Sample Timeline JSON
+
+Save the following as `timeline.json` and pass its path to `render_video`:
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "soundtrack": {
+      "src": "path/to/background_music.mp3",
+      "effect": "fadeOut"
+    },
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "image",
+              "src": "path/to/intro.jpg"
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 25,
+            "effect": "zoomIn",
+            "transition": {"in": "fade", "out": "fade"}
+          },
+          {
+            "asset": {
+              "type": "video",
+              "src": "path/to/clip.mp4"
+            },
+            "start": 25,
+            "video_start_frame": 0,
+            "length": 50,
+            "effect": null,
+            "transition": {"in": "fade", "out": "fade"}
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+```python
+from pavo import render_video
+
+render_video('timeline.json', 'output/video.mp4')
+```
+
+#### Error handling
+
+`render_video` raises descriptive exceptions for common mistakes:
+
+```python
+from pavo import render_video
+
+try:
+    render_video('timeline.json', 'output/video.mp4')
+except FileNotFoundError as exc:
+    print(f"JSON file missing: {exc}")
+except ValueError as exc:
+    print(f"Invalid timeline JSON: {exc}")
 ```
 
 ## 🏗️ Architecture Overview

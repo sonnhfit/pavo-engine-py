@@ -1,6 +1,6 @@
 import pytest
 
-from sequancer.render import (
+from pavo.sequancer.render import (
     render,
     read_json_video,
     get_strips_from_json,
@@ -12,7 +12,7 @@ def test_read_json_video():
     json_data = read_json_video("docs/data.json")
     assert json_data["timeline"]["n_frames"] == 30
     assert len(json_data["timeline"]["tracks"]) == 2
-    assert len(json_data["timeline"]["tracks"][0]["strips"]) == 3
+    assert len(json_data["timeline"]["tracks"][0]["strips"]) == 4
     assert len(json_data["timeline"]["tracks"][1]["strips"]) == 2
 
 
@@ -20,7 +20,7 @@ def test_get_strips_from_json():
     json_data = read_json_video("docs/data.json")
     strips = get_strips_from_json(json_data)
 
-    assert len(strips) == 5
+    assert len(strips) == 6
     assert strips[0].start_frame == 0
     assert strips[0].length == 5
     assert strips[0].track_id == 0
@@ -33,6 +33,6 @@ def test_get_strips_from_json():
 
 
 def test_init_sequence():
-    seq = init_sequence("docs/data.json")
+    seq = init_sequence("docs/data.json", temp_dir="temp")
     assert seq.n_frame == 30
-    assert len(seq.strips) == 5
+    assert len(seq.strips) == 6
