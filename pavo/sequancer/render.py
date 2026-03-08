@@ -26,7 +26,7 @@ def get_strips_from_json(json_data):
     return strips
 
 
-def init_sequence(file_path, temp_dir):
+def init_sequence(file_path, temp_dir="temp"):
     json_data = read_json_video(file_path)
     strips = get_strips_from_json(json_data)
     seq = Sequence(

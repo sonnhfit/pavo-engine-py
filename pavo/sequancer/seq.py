@@ -114,6 +114,9 @@ class Sequence:
         self.init_temp()
 
     def init_temp(self):
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir, exist_ok=True)
+            return
         files = glob.glob(f'{self.temp_dir}/*')
         for f in files:
             os.remove(f)
