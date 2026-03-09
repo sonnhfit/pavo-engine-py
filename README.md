@@ -93,11 +93,59 @@ Save the following as `timeline.json` and pass its path to `render_video`:
 }
 ```
 
+#### Audio Ducking
+
+Enable the `audio_ducking` flag in the `output` section to automatically lower
+the `soundtrack` volume whenever speech is detected in video clips:
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "soundtrack": {
+      "src": "path/to/background_music.mp3"
+    },
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "path/to/narration.mp4"
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 75,
+            "effect": null,
+            "transition": {}
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720,
+    "audio_ducking": true,
+    "ducking_reduction_db": 10
+  }
+}
+```
+
 ```python
 from pavo import render_video
 
 render_video('timeline.json', 'output/video.mp4')
 ```
+
+| `output` field | Type | Default | Description |
+|---|---|---|---|
+| `audio_ducking` | `bool` | `false` | Enable automatic volume ducking of `soundtrack` during detected speech segments. |
+| `ducking_reduction_db` | `float` | `10.0` | Volume reduction (in dB) applied to the soundtrack during speech. Requires `openai-whisper`. |
 
 #### Error handling
 
