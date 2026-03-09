@@ -96,6 +96,141 @@ def _add_audio_to_video(video_path, audio_path, output_path):
     )
 
 
+def _build_ducking_expr(speech_segments, reduction_db=10.0):
+    """Build an FFmpeg ``volume`` filter expression that ducks audio during speech.
+
+    Parameters
+    ----------
+    speech_segments : list of (float, float)
+        Each tuple is *(start_seconds, end_seconds)* of a detected speech segment.
+    reduction_db : float
+        How many decibels to reduce the volume during speech (positive number).
+
+    Returns
+    -------
+    str
+        An FFmpeg volume expression string suitable for the ``volume`` filter.
+    """
+    if not speech_segments:
+        return "1.0"
+
+    linear_factor = 10 ** (-abs(reduction_db) / 20.0)
+    conditions = [f"between(t,{start:.3f},{end:.3f})" for start, end in speech_segments]
+    combined = "+".join(conditions)
+    return f"if({combined},{linear_factor:.6f},1.0)"
+
+
+def _apply_audio_ducking(audio_path, speech_segments, reduction_db, output_path):
+    """Create a ducked copy of *audio_path* with reduced volume during speech segments.
+
+    Parameters
+    ----------
+    audio_path : str
+        Path to the original soundtrack file.
+    speech_segments : list of (float, float)
+        Speech time intervals in seconds (output-video timeline).
+    reduction_db : float
+        Volume reduction in dB during speech (positive number means reduction).
+    output_path : str
+        Destination path for the processed audio file.
+    """
+    if not speech_segments:
+        shutil.copy(audio_path, output_path)
+        return
+
+    expr = _build_ducking_expr(speech_segments, reduction_db)
+    (
+        ffmpeg
+        .input(audio_path)
+        .filter("volume", volume=expr, eval="frame")
+        .output(output_path)
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+
+def _detect_speech_segments(timeline, fps):
+    """Detect speech intervals from video strips in the timeline.
+
+    Iterates over all *video* strips that have an audio stream, transcribes
+    each one using :class:`pavo.perception.speech.SpeechTranscriber`, and maps
+    the resulting segment timestamps to the output-video timeline.
+
+    Requires ``openai-whisper`` to be installed.  When the package is absent,
+    or when no suitable video strip is found, an empty list is returned.
+
+    Parameters
+    ----------
+    timeline : dict
+        The parsed ``timeline`` object from the JSON specification.
+    fps : float
+        Frames-per-second of the output video (used to convert frame numbers
+        to seconds).
+
+    Returns
+    -------
+    list of (float, float)
+        Speech segments as *(start_seconds, end_seconds)* pairs in the
+        coordinate space of the final output video.
+    """
+    try:
+        from pavo.perception.speech.transcriber import SpeechTranscriber
+    except ImportError:
+        return []
+
+    speech_segments = []
+
+    for track in timeline.get("tracks", []):
+        for strip_data in track.get("strips", []):
+            asset = strip_data.get("asset", {})
+            if asset.get("type") != "video":
+                continue
+
+            src = asset.get("src", "")
+            if not src or not os.path.exists(src):
+                continue
+
+            # Skip video files with no audio stream.
+            try:
+                probe = ffmpeg.probe(src)
+                has_audio = any(
+                    s["codec_type"] == "audio" for s in probe.get("streams", [])
+                )
+                if not has_audio:
+                    continue
+            except Exception:
+                continue
+
+            start_frame = strip_data.get("start", 0)
+            video_start_frame = strip_data.get("video_start_frame", 0)
+            length = strip_data.get("length", 0)
+
+            strip_start_sec = start_frame / fps
+            video_start_sec = video_start_frame / fps
+            strip_duration_sec = length / fps
+
+            try:
+                transcriber = SpeechTranscriber()
+                result = transcriber.transcribe(src)
+
+                for seg in result.get("segments", []):
+                    seg_start = seg["start"]
+                    seg_end = seg["end"]
+
+                    # Clamp to the portion of the source video used by this strip.
+                    clip_start = max(seg_start, video_start_sec)
+                    clip_end = min(seg_end, video_start_sec + strip_duration_sec)
+
+                    if clip_start < clip_end:
+                        out_start = strip_start_sec + (clip_start - video_start_sec)
+                        out_end = strip_start_sec + (clip_end - video_start_sec)
+                        speech_segments.append((out_start, out_end))
+            except Exception:
+                continue
+
+    return speech_segments
+
+
 def render_video(json_path, output="output.mp4"):
     """Render a JSON timeline specification to an MP4 video file.
 
@@ -133,6 +268,8 @@ def render_video(json_path, output="output.mp4"):
     background = timeline.get("background", "#000000")
     soundtrack = timeline.get("soundtrack", {})
     soundtrack_src = soundtrack.get("src") if isinstance(soundtrack, dict) else None
+    audio_ducking = output_spec.get("audio_ducking", False)
+    ducking_reduction_db = output_spec.get("ducking_reduction_db", 10.0)
 
     output_dir = os.path.dirname(os.path.abspath(output))
     os.makedirs(output_dir, exist_ok=True)
@@ -163,8 +300,25 @@ def render_video(json_path, output="output.mp4"):
         )
 
         if has_audio:
-            print(f"[pavo] Adding soundtrack: {soundtrack_src}")
-            _add_audio_to_video(video_only, soundtrack_src, output)
+            effective_soundtrack = soundtrack_src
+            if audio_ducking:
+                print("[pavo] Detecting speech segments for audio ducking...")
+                speech_segs = _detect_speech_segments(timeline, fps)
+                if speech_segs:
+                    ducked_audio = os.path.join(tmp_root, "ducked_audio.aac")
+                    print(
+                        f"[pavo] Applying audio ducking "
+                        f"({len(speech_segs)} speech segment(s), "
+                        f"-{ducking_reduction_db} dB)..."
+                    )
+                    _apply_audio_ducking(
+                        soundtrack_src, speech_segs, ducking_reduction_db, ducked_audio
+                    )
+                    effective_soundtrack = ducked_audio
+                else:
+                    print("[pavo] No speech detected; skipping audio ducking.")
+            print(f"[pavo] Adding soundtrack: {effective_soundtrack}")
+            _add_audio_to_video(video_only, effective_soundtrack, output)
 
         print(f"[pavo] Done → {output}")
     finally:

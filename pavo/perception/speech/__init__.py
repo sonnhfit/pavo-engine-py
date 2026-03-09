@@ -1,12 +1,16 @@
 from pavo.perception.speech.transcriber import SpeechTranscriber
-from pavo.perception.speech.diarization import (
-    SpeakerDiarization,
-    SpeakerDiarizationResult,
-    SpeechActivityDetection,
-    SpeakerChangeDetection,
-    OverlappingSpeechDetection,
-    SpeakerEmbedding
-)
+
+try:
+    from pavo.perception.speech.diarization import (
+        SpeakerDiarization,
+        SpeakerDiarizationResult,
+        SpeechActivityDetection,
+        SpeakerChangeDetection,
+        OverlappingSpeechDetection,
+        SpeakerEmbedding
+    )
+except ImportError:
+    pass
 
 __all__ = [
     'SpeechTranscriber',
