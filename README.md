@@ -256,6 +256,78 @@ Pavo Engine uses a structured JSON format to define video timelines:
 }
 ```
 
+### Text Overlays
+
+Add text on top of your video or image content using `"type": "text"` in any strip's asset. Text is rendered via the FFmpeg `drawtext` filter.
+
+**Required fields:** `content`  
+**Optional fields:** `font`, `size`, `color`, `position`, `animation`
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "path/to/clip.mp4"
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 75,
+            "effect": null,
+            "transition": {"in": "fade", "out": "fade"}
+          }
+        ]
+      },
+      {
+        "track_id": 1,
+        "strips": [
+          {
+            "asset": {
+              "type": "text",
+              "content": "Hello World",
+              "font": "/path/to/font.ttf",
+              "size": 48,
+              "color": "white",
+              "position": {"x": 10, "y": 10},
+              "animation": "fadeIn"
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 25,
+            "effect": null,
+            "transition": {}
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+| Text asset field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `content` | `string` | ✅ | — | The text string to display. |
+| `font` | `string` | ❌ | system default | Path to a `.ttf` / `.otf` font file. |
+| `size` | `number` | ❌ | `24` | Font size in pixels. |
+| `color` | `string` | ❌ | `"white"` | Font color (FFmpeg color name or hex, e.g. `"red"`, `"#ff0000"`). |
+| `position` | `object` | ❌ | `{"x": 0, "y": 0}` | Top-left anchor. Values can be numbers or `"center"` (e.g. `{"x": "center", "y": 50}`). |
+| `animation` | `string` | ❌ | `null` | Optional animation tag (stored for future use, e.g. `"fadeIn"`). |
+
+> **Tip:** Text strips in a higher `track_id` are drawn on top of strips with a lower `track_id`.
+
 ## 🎯 Use Cases
 
 ### 1. **Social Media Content Creation**

@@ -12,15 +12,34 @@ def get_strips_from_json(json_data):
     strips = []
     for track in json_data["timeline"]["tracks"]:
         for item in track["strips"]:
-            strip = Strip(
-                type=item["asset"]["type"],
-                media_source=item["asset"]["src"],
+            asset = item["asset"]
+            asset_type = asset.get("type")
+
+            common_kwargs = dict(
+                type=asset_type,
                 track_id=track["track_id"],
                 start_frame=item["start"],
                 length=item["length"],
-                effect=item["effect"],
-                video_start_frame=item["video_start_frame"],
+                effect=item.get("effect"),
+                video_start_frame=item.get("video_start_frame", 0),
             )
+
+            if asset_type == "text":
+                strip = Strip(
+                    **common_kwargs,
+                    media_source=None,
+                    content=asset.get("content"),
+                    font=asset.get("font"),
+                    size=asset.get("size", 24),
+                    color=asset.get("color", "white"),
+                    position=asset.get("position", {"x": 0, "y": 0}),
+                    animation=asset.get("animation"),
+                )
+            else:
+                strip = Strip(
+                    **common_kwargs,
+                    media_source=asset.get("src"),
+                )
             strips.append(strip)
 
     return strips

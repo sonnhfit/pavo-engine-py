@@ -54,13 +54,17 @@
                     {
                         "asset": {
                             "type": "text",
-                            "src": "",
-                            "text": "Hello World"
+                            "content": "Hello World",
+                            "font": null,
+                            "size": 48,
+                            "color": "white",
+                            "position": {"x": 10, "y": 10},
+                            "animation": "fadeIn"
                         },
                         "start": 17,
                         "video_start_frame": 0,
                         "length": 5,
-                        "effect": "slideDown",
+                        "effect": null,
                         "transition": {
                             "out": "fade"
                         }
