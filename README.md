@@ -256,6 +256,58 @@ Pavo Engine uses a structured JSON format to define video timelines:
 }
 ```
 
+### Transition Effects
+
+Each strip can specify `"in"` and `"out"` transitions that are applied when the strip enters or exits the composition. The `"duration"` field controls how many frames the transition lasts (default: `5`).
+
+| `transition.type` | Description | FFmpeg filter |
+|---|---|---|
+| `fade` | Gradually modulates the strip's alpha channel from 0 → 1 (in) or 1 → 0 (out). | `format=rgba`, `colorchannelmixer`, `overlay` |
+| `slide` | Translates the strip in from the left edge (in) or out to the right edge (out). | `overlay` with computed `x` expression |
+| `wipe` | Progressively reveals the strip left-to-right (in) or hides it (out) via a crop mask. | `crop`, `overlay` |
+| `dissolve` | Cross-blends the strip with the base image using the `blend` filter. | `blend` |
+
+```json
+{
+  "timeline": {
+    "n_frames": 50,
+    "background": "#000000",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {"type": "image", "src": "path/to/intro.jpg"},
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 25,
+            "effect": "zoomIn",
+            "transition": {"in": "fade", "out": "slide", "duration": 8}
+          },
+          {
+            "asset": {"type": "image", "src": "path/to/clip.jpg"},
+            "start": 20,
+            "video_start_frame": 0,
+            "length": 30,
+            "effect": null,
+            "transition": {"in": "wipe", "out": "dissolve", "duration": 10}
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+> **Note:** The transition `"duration"` is automatically clamped to half the strip's length so that
+> in- and out-transitions never overlap within the same strip.
+
 ### Text Overlays
 
 Add text on top of your video or image content using `"type": "text"` in any strip's asset. Text is rendered via the FFmpeg `drawtext` filter.
