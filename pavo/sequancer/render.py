@@ -15,6 +15,11 @@ def get_strips_from_json(json_data):
             asset = item["asset"]
             asset_type = asset.get("type")
 
+            transition = item.get("transition") or {}
+            try:
+                transition_duration = int(transition.get("duration", 5))
+            except (TypeError, ValueError):
+                transition_duration = 5
             common_kwargs = dict(
                 type=asset_type,
                 track_id=track["track_id"],
@@ -22,6 +27,9 @@ def get_strips_from_json(json_data):
                 length=item["length"],
                 effect=item.get("effect"),
                 video_start_frame=item.get("video_start_frame", 0),
+                transition_in=transition.get("in"),
+                transition_out=transition.get("out"),
+                transition_duration=transition_duration,
             )
 
             if asset_type == "text":

@@ -21,7 +21,8 @@
                         "effect": "zoomIn",
                         "transition": {
                             "in": "fade",
-                            "out": "fade"
+                            "out": "fade",
+                            "duration": 3
                         }
                     },
                     {
@@ -32,10 +33,11 @@
                         "start": 3,
                         "video_start_frame": 0,
                         "length": 10,
-                        
                         "effect": "slideUp",
                         "transition": {
-                            "out": "fade"
+                            "in": "slide",
+                            "out": "slide",
+                            "duration": 5
                         }
                     },
                     {
@@ -48,7 +50,9 @@
                         "length": 5,
                         "effect": "slideDown",
                         "transition": {
-                            "out": "fade"
+                            "in": "wipe",
+                            "out": "wipe",
+                            "duration": 3
                         }
                     },
                     {
@@ -66,7 +70,8 @@
                         "length": 5,
                         "effect": null,
                         "transition": {
-                            "out": "fade"
+                            "out": "fade",
+                            "duration": 3
                         }
                     }
                 ]
@@ -84,7 +89,9 @@
                         "length": 15,
                         "effect": "slideLeft",
                         "transition": {
-                            "out": "fade"
+                            "in": "dissolve",
+                            "out": "dissolve",
+                            "duration": 5
                         }
                     },
                     {
@@ -97,7 +104,9 @@
                         "length": 5,
                         "effect": "zoomOut",
                         "transition": {
-                            "out": "fade"
+                            "in": "wipe",
+                            "out": "slide",
+                            "duration": 3
                         }
                     }
                 ]

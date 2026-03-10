@@ -25,6 +25,9 @@ class Effect:
 
 
 # một element trong sequence
+SUPPORTED_TRANSITIONS = {"fade", "slide", "wipe", "dissolve"}
+
+
 class Strip:
     def __init__(
         self,
@@ -41,6 +44,9 @@ class Strip:
         color="white",
         position=None,
         animation=None,
+        transition_in=None,
+        transition_out=None,
+        transition_duration=5,
     ):
         self.type = type
         self.media_source = media_source
@@ -61,6 +67,11 @@ class Strip:
         self.color = color
         self.position = position if position is not None else {"x": 0, "y": 0}
         self.animation = animation
+
+        # Transition attributes
+        self.transition_in = transition_in
+        self.transition_out = transition_out
+        self.transition_duration = transition_duration
 
     def load_media_source(self):
         pass
@@ -150,6 +161,122 @@ class Strip:
         height = int(video_stream["height"])
         self.video_info = video_stream
 
+    # ------------------------------------------------------------------
+    # Transition helpers
+    # ------------------------------------------------------------------
+
+    def _get_active_transition(self, frame):
+        """Return the active transition state for *frame*, or ``None``.
+
+        Returns a ``(direction, type, progress)`` tuple when a transition is
+        active:
+
+        * ``direction`` – ``'in'`` or ``'out'``
+        * ``type`` – transition name (``'fade'``, ``'slide'``, ``'wipe'``,
+          ``'dissolve'``)
+        * ``progress`` – float in ``[0.0, 1.0]``; ``0.0`` means the strip is
+          fully hidden / off-screen, ``1.0`` means fully visible.
+
+        The effective transition duration is clamped to at most half the
+        strip's length so that *in* and *out* transitions never overlap.
+        """
+        max_dur = max(1, self.length // 2)
+        dur = min(self.transition_duration, max_dur)
+        if dur <= 0:
+            return None
+
+        frame_in_strip = frame - self.start_frame
+
+        if self.transition_in and frame_in_strip < dur:
+            progress = frame_in_strip / max(dur - 1, 1)
+            return ("in", self.transition_in, max(0.0, min(1.0, progress)))
+
+        frames_from_end = (self.start_frame + self.length) - frame
+        if self.transition_out and frames_from_end <= dur:
+            progress = (frames_from_end - 1) / max(dur - 1, 1)
+            return ("out", self.transition_out, max(0.0, min(1.0, progress)))
+
+        return None
+
+    def _apply_fade(self, base_img, strip_frame, progress):
+        """Fade transition: modulate strip alpha then overlay on *base_img*."""
+        alpha = max(0.0, min(1.0, progress))
+        faded = (
+            strip_frame
+            .filter("format", "rgba")
+            .filter("colorchannelmixer", aa=alpha)
+        )
+        return base_img.overlay(faded, format="auto")
+
+    def _apply_slide(self, base_img, strip_frame, progress, direction):
+        """Slide transition: strip enters from / exits to the left edge."""
+        if direction == "in":
+            # Slide in from left: x goes from −overlay_w to 0.
+            offset = 1.0 - progress
+            x = f"-overlay_w*{offset:.6f}"
+        else:
+            # Slide out to right: x goes from 0 to +main_w.
+            out_offset = 1.0 - progress
+            x = f"main_w*{out_offset:.6f}"
+        return base_img.overlay(strip_frame, x=x, y="0")
+
+    def _apply_wipe(self, base_img, strip_frame, progress, direction):  # noqa: ARG002
+        """Wipe transition: reveal / hide the strip left-to-right via crop."""
+        alpha = max(0.0, min(1.0, progress))
+        if alpha <= 0.0:
+            return base_img
+        cropped = strip_frame.filter(
+            "crop", w=f"iw*{alpha:.6f}", h="ih", x="0", y="0"
+        )
+        return base_img.overlay(cropped, x="0", y="0")
+
+    def _apply_dissolve(self, base_img, strip_frame, progress):
+        """Dissolve transition: cross-blend strip with base image."""
+        alpha = max(0.0, min(1.0, progress))
+        blended = ffmpeg.filter(
+            [base_img, strip_frame],
+            "blend",
+            all_expr=f"A*(1-{alpha:.6f})+B*{alpha:.6f}",
+        )
+        return blended
+
+    def apply_transition_overlay(self, base_img, strip_frame, frame):
+        """Overlay *strip_frame* on *base_img* using the active transition.
+
+        Falls back to a plain :func:`overlay` when no transition is active at
+        *frame*.
+
+        Parameters
+        ----------
+        base_img : ffmpeg stream
+            The composited base image stream.
+        strip_frame : ffmpeg stream
+            The strip's frame stream to overlay.
+        frame : int
+            The absolute frame number being rendered (used to compute
+            transition progress).
+
+        Returns
+        -------
+        ffmpeg stream
+            The composited stream with the transition applied.
+        """
+        active = self._get_active_transition(frame)
+        if active is None:
+            return base_img.overlay(strip_frame)
+
+        direction, transition_type, progress = active
+
+        if transition_type == "fade":
+            return self._apply_fade(base_img, strip_frame, progress)
+        if transition_type == "slide":
+            return self._apply_slide(base_img, strip_frame, progress, direction)
+        if transition_type == "wipe":
+            return self._apply_wipe(base_img, strip_frame, progress, direction)
+        if transition_type == "dissolve":
+            return self._apply_dissolve(base_img, strip_frame, progress)
+        return base_img.overlay(strip_frame)
+
 
 # một sequence
 class Sequence:
@@ -222,7 +349,9 @@ class Sequence:
             elif img is None:
                 img = strip.get_frame(frame, self.temp_dir)
             else:
-                img = self.overlay(img, strip.get_frame(frame, self.temp_dir))
+                img = strip.apply_transition_overlay(
+                    img, strip.get_frame(frame, self.temp_dir), frame
+                )
         return img
 
     def render_strips(self, strips: List[Strip], frame: int):
