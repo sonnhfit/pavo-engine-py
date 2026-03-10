@@ -35,6 +35,12 @@ class Strip:
         length=0,
         effect=None,
         video_start_frame=0,
+        content=None,
+        font=None,
+        size=24,
+        color="white",
+        position=None,
+        animation=None,
     ):
         self.type = type
         self.media_source = media_source
@@ -47,6 +53,14 @@ class Strip:
         self.video_start_frame = video_start_frame
 
         self.video_info = None
+
+        # Text overlay attributes
+        self.content = content
+        self.font = font
+        self.size = size
+        self.color = color
+        self.position = position if position is not None else {"x": 0, "y": 0}
+        self.animation = animation
 
     def load_media_source(self):
         pass
@@ -88,6 +102,43 @@ class Strip:
             return None
         else:
             return None
+
+    def apply_text(self, img):
+        """Apply this text strip's content to an existing FFmpeg stream via drawtext.
+
+        Parameters
+        ----------
+        img : ffmpeg stream
+            The base FFmpeg stream to draw text onto.
+
+        Returns
+        -------
+        ffmpeg stream
+            The stream with the ``drawtext`` filter applied.
+        """
+        if not self.content:
+            return img
+
+        pos = self.position if isinstance(self.position, dict) else {}
+        raw_x = pos.get("x", 0)
+        raw_y = pos.get("y", 0)
+
+        # Support named positions ("center") as FFmpeg expressions.
+        x = "(w-tw)/2" if str(raw_x).lower() == "center" else str(raw_x)
+        y = "(h-th)/2" if str(raw_y).lower() == "center" else str(raw_y)
+
+        kwargs = {
+            "text": self.content,
+            "fontsize": self.size,
+            "fontcolor": self.color,
+            "x": x,
+            "y": y,
+        }
+
+        if self.font:
+            kwargs["fontfile"] = self.font
+
+        return img.filter("drawtext", **kwargs)
 
     def read_video_info(self, in_filename):
         probe = ffmpeg.probe(in_filename)
@@ -165,7 +216,10 @@ class Sequence:
     def render_strip_list(self, strips: List[Strip], frame: int):
         img = None
         for strip in strips:
-            if img is None:
+            if strip.type == "text":
+                if img is not None:
+                    img = strip.apply_text(img)
+            elif img is None:
                 img = strip.get_frame(frame, self.temp_dir)
             else:
                 img = self.overlay(img, strip.get_frame(frame, self.temp_dir))
