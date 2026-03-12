@@ -28,7 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov
-          pip install ffmpeg-python pillow tqdm retrying requests
+          pip install ffmpeg-python pillow tqdm retrying requests pydantic
 
       - name: Run tests with coverage
         run: python -m pytest tests/ --cov=pavo --cov-report=term-missing -v
