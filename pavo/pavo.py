@@ -6,6 +6,7 @@ import tempfile
 import ffmpeg
 from tqdm import tqdm
 
+from pavo.schema import validate_timeline_json
 from pavo.sequancer.render import render
 
 
@@ -256,6 +257,8 @@ def render_video(json_path, output="output.mp4"):
             video_json = json.load(fh)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in {json_path}: {exc}") from exc
+
+    validate_timeline_json(video_json)
 
     timeline = video_json.get("timeline")
     if not isinstance(timeline, dict):

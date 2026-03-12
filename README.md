@@ -162,7 +162,75 @@ except ValueError as exc:
     print(f"Invalid timeline JSON: {exc}")
 ```
 
-## 🏗️ Architecture Overview
+## 🗂️ JSON Schema
+
+Pavo Engine validates every timeline file against a strict [Pydantic](https://docs.pydantic.dev/) schema before rendering begins.  Any missing or invalid field raises a `ValueError` with a clear, human-readable message that lists every problem found.
+
+### Validation rules at a glance
+
+| Location | Field | Type | Required | Constraint |
+|---|---|---|---|---|
+| root | `timeline` | object | ✅ | — |
+| root | `output` | object | ❌ | — |
+| `timeline` | `n_frames` | int | ✅ | ≥ 0 |
+| `timeline` | `background` | string | ❌ | must start with `#` |
+| `timeline` | `tracks` | array | ❌ | defaults to `[]` |
+| `timeline` | `soundtrack` | object | ❌ | — |
+| `soundtrack` | `src` | string | ✅ | — |
+| `soundtrack` | `effect` | string | ❌ | e.g. `"fadeOut"` |
+| `tracks[*]` | `track_id` | int | ✅ | ≥ 0 |
+| `tracks[*]` | `strips` | array | ✅ | ≥ 1 item |
+| `strips[*]` | `asset` | object | ✅ | — |
+| `strips[*]` | `start` | int | ✅ | ≥ 0 |
+| `strips[*]` | `length` | int | ✅ | ≥ 1 |
+| `strips[*]` | `video_start_frame` | int | ❌ | ≥ 0, default `0` |
+| `strips[*]` | `transition` | object | ❌ | — |
+| `asset` | `type` | string | ✅ | `"image"` \| `"video"` \| `"text"` |
+| `asset` | `src` | string | ✅ for image/video | file path |
+| `asset` | `content` | string | ✅ for text | non-empty |
+| `asset` | `size` | int | ❌ | ≥ 1, default `24` |
+| `asset` | `color` | string | ❌ | default `"white"` |
+| `asset` | `position.x/y` | number \| `"center"` | ❌ | default `0` |
+| `transition` | `in` | string | ❌ | `fade`\|`slide`\|`wipe`\|`dissolve` |
+| `transition` | `out` | string | ❌ | `fade`\|`slide`\|`wipe`\|`dissolve` |
+| `transition` | `duration` | int | ❌ | ≥ 1, default `5` |
+| `output` | `fps` | float | ❌ | > 0, default `25` |
+| `output` | `width` | int | ❌ | ≥ 1 |
+| `output` | `height` | int | ❌ | ≥ 1 |
+| `output` | `audio_ducking` | bool | ❌ | default `false` |
+| `output` | `ducking_reduction_db` | float | ❌ | default `10.0` |
+
+### Programmatic access
+
+You can also validate a timeline dict directly without rendering:
+
+```python
+from pavo.schema import validate_timeline_json
+
+data = {
+    "timeline": {
+        "n_frames": 25,
+        "background": "#1a1a2e",
+        "tracks": [
+            {
+                "track_id": 0,
+                "strips": [
+                    {
+                        "asset": {"type": "image", "src": "intro.jpg"},
+                        "start": 0,
+                        "length": 25,
+                    }
+                ],
+            }
+        ],
+    },
+    "output": {"fps": 25, "width": 1280, "height": 720},
+}
+
+model = validate_timeline_json(data)   # raises ValueError on failure
+print(model.timeline.n_frames)         # 25
+```
+
 
 Pavo Engine follows a sophisticated 4-layer architecture:
 
