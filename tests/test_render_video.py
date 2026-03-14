@@ -13,6 +13,8 @@ from pavo.pavo import (
     _build_ducking_expr,
     _apply_audio_ducking,
     _detect_speech_segments,
+    _collect_audio_strips,
+    _mix_audio_with_strips,
 )
 
 
@@ -592,4 +594,350 @@ class TestRenderVideoAudioDucking:
 
         mock_detect.assert_not_called()
         mock_duck.assert_not_called()
+        mock_add_audio.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _collect_audio_strips
+# ---------------------------------------------------------------------------
+
+class TestCollectAudioStrips:
+    def _make_timeline(self, strips_per_track):
+        """Build a minimal timeline dict with one track containing *strips_per_track*."""
+        return {
+            "tracks": [
+                {
+                    "track_id": 1,
+                    "strips": strips_per_track,
+                }
+            ]
+        }
+
+    def test_no_tracks_returns_empty(self):
+        result = _collect_audio_strips({"tracks": []}, fps=25)
+        assert result == []
+
+    def test_non_audio_strips_ignored(self):
+        timeline = self._make_timeline([
+            {"asset": {"type": "image", "src": "img.jpg"}, "start": 0, "length": 25},
+            {"asset": {"type": "video", "src": "clip.mp4"}, "start": 0, "length": 25},
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert result == []
+
+    def test_audio_strip_collected(self):
+        timeline = self._make_timeline([
+            {
+                "asset": {"type": "audio", "src": "voice.mp3"},
+                "start": 0,
+                "length": 25,
+            }
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert len(result) == 1
+        assert result[0]["src"] == "voice.mp3"
+        assert result[0]["start_ms"] == 0
+        assert result[0]["volume"] == 1.0
+
+    def test_audio_strip_with_volume(self):
+        timeline = self._make_timeline([
+            {
+                "asset": {"type": "audio", "src": "sfx.mp3", "volume": 0.5},
+                "start": 0,
+                "length": 10,
+            }
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert result[0]["volume"] == 0.5
+
+    def test_strip_start_converted_to_ms(self):
+        """start=50 frames at 25 fps → 2000 ms."""
+        timeline = self._make_timeline([
+            {
+                "asset": {"type": "audio", "src": "voice.mp3"},
+                "start": 50,
+                "length": 25,
+            }
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert result[0]["start_ms"] == 2000
+
+    def test_asset_start_offset_added_to_strip_start(self):
+        """strip start=25 + asset start=5 → (30/25)*1000 = 1200 ms."""
+        timeline = self._make_timeline([
+            {
+                "asset": {"type": "audio", "src": "voice.mp3", "start": 5},
+                "start": 25,
+                "length": 25,
+            }
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert result[0]["start_ms"] == 1200
+
+    def test_missing_src_skipped(self):
+        timeline = self._make_timeline([
+            {"asset": {"type": "audio", "src": ""}, "start": 0, "length": 10},
+            {"asset": {"type": "audio"}, "start": 0, "length": 10},
+        ])
+        result = _collect_audio_strips(timeline, fps=25)
+        assert result == []
+
+    def test_multiple_audio_strips_all_collected(self):
+        timeline = {
+            "tracks": [
+                {
+                    "track_id": 1,
+                    "strips": [
+                        {"asset": {"type": "audio", "src": "a.mp3"}, "start": 0, "length": 10},
+                        {"asset": {"type": "audio", "src": "b.mp3"}, "start": 25, "length": 10},
+                    ],
+                },
+                {
+                    "track_id": 2,
+                    "strips": [
+                        {"asset": {"type": "audio", "src": "c.mp3"}, "start": 50, "length": 10},
+                    ],
+                },
+            ]
+        }
+        result = _collect_audio_strips(timeline, fps=25)
+        assert len(result) == 3
+        srcs = {r["src"] for r in result}
+        assert srcs == {"a.mp3", "b.mp3", "c.mp3"}
+
+
+# ---------------------------------------------------------------------------
+# _mix_audio_with_strips
+# ---------------------------------------------------------------------------
+
+class TestMixAudioWithStrips:
+    def test_no_audio_strips_delegates_to_add_audio(self, tmp_path):
+        """When audio_strips is empty, _add_audio_to_video should be called."""
+        with patch("pavo.pavo._add_audio_to_video") as mock_add:
+            _mix_audio_with_strips("video.mp4", "sound.mp3", [], "out.mp4")
+            mock_add.assert_called_once_with("video.mp4", "sound.mp3", "out.mp4")
+
+    @patch("pavo.pavo.ffmpeg")
+    def test_audio_strips_invoke_amix(self, mock_ffmpeg):
+        """When audio strips are present, ffmpeg filter chain should be invoked."""
+        chain = MagicMock()
+        mock_ffmpeg.input.return_value = chain
+        chain.audio = chain
+        chain.video = chain
+        chain.filter.return_value = chain
+        chain.output.return_value = chain
+        chain.overwrite_output.return_value = chain
+        chain.run.return_value = (b"", b"")
+        mock_ffmpeg.filter.return_value = chain
+
+        audio_strips = [
+            {"src": "voice.mp3", "start_ms": 1000, "volume": 0.8},
+        ]
+        _mix_audio_with_strips("video.mp4", "sound.mp3", audio_strips, "out.mp4")
+
+        # The function must call ffmpeg.input at least for video, soundtrack, and
+        # the audio strip.
+        assert mock_ffmpeg.input.call_count >= 3
+
+    @patch("pavo.pavo.ffmpeg")
+    def test_audio_strip_without_soundtrack(self, mock_ffmpeg):
+        """Audio strips work even when there is no global soundtrack."""
+        chain = MagicMock()
+        mock_ffmpeg.input.return_value = chain
+        chain.audio = chain
+        chain.video = chain
+        chain.filter.return_value = chain
+        chain.output.return_value = chain
+        chain.overwrite_output.return_value = chain
+        chain.run.return_value = (b"", b"")
+        mock_ffmpeg.filter.return_value = chain
+
+        audio_strips = [{"src": "sfx.mp3", "start_ms": 0, "volume": 1.0}]
+        _mix_audio_with_strips("video.mp4", None, audio_strips, "out.mp4")
+
+        # Input called for video + strip audio only (no soundtrack).
+        assert mock_ffmpeg.input.call_count == 2
+
+    @patch("pavo.pavo.ffmpeg")
+    def test_delay_filter_applied_for_nonzero_start(self, mock_ffmpeg):
+        """adelay filter must be applied when start_ms > 0."""
+        chain = MagicMock()
+        mock_ffmpeg.input.return_value = chain
+        chain.audio = chain
+        chain.video = chain
+        chain.filter.return_value = chain
+        chain.output.return_value = chain
+        chain.overwrite_output.return_value = chain
+        chain.run.return_value = (b"", b"")
+        mock_ffmpeg.filter.return_value = chain
+
+        audio_strips = [{"src": "sfx.mp3", "start_ms": 2000, "volume": 1.0}]
+        _mix_audio_with_strips("video.mp4", None, audio_strips, "out.mp4")
+
+        # .filter("adelay", ...) must be called on the audio chain
+        adelay_calls = [
+            c for c in chain.filter.call_args_list
+            if c.args and c.args[0] == "adelay"
+        ]
+        assert len(adelay_calls) >= 1
+
+    @patch("pavo.pavo.ffmpeg")
+    def test_volume_filter_applied_when_not_unity(self, mock_ffmpeg):
+        """volume filter must be applied when volume != 1.0."""
+        chain = MagicMock()
+        mock_ffmpeg.input.return_value = chain
+        chain.audio = chain
+        chain.video = chain
+        chain.filter.return_value = chain
+        chain.output.return_value = chain
+        chain.overwrite_output.return_value = chain
+        chain.run.return_value = (b"", b"")
+        mock_ffmpeg.filter.return_value = chain
+
+        audio_strips = [{"src": "sfx.mp3", "start_ms": 0, "volume": 0.5}]
+        _mix_audio_with_strips("video.mp4", None, audio_strips, "out.mp4")
+
+        volume_calls = [
+            c for c in chain.filter.call_args_list
+            if c.args and c.args[0] == "volume"
+        ]
+        assert len(volume_calls) >= 1
+
+    @patch("pavo.pavo.ffmpeg")
+    def test_volume_filter_skipped_when_unity(self, mock_ffmpeg):
+        """volume filter must NOT be applied when volume == 1.0."""
+        chain = MagicMock()
+        mock_ffmpeg.input.return_value = chain
+        chain.audio = chain
+        chain.video = chain
+        chain.filter.return_value = chain
+        chain.output.return_value = chain
+        chain.overwrite_output.return_value = chain
+        chain.run.return_value = (b"", b"")
+        mock_ffmpeg.filter.return_value = chain
+
+        audio_strips = [{"src": "sfx.mp3", "start_ms": 0, "volume": 1.0}]
+        _mix_audio_with_strips("video.mp4", None, audio_strips, "out.mp4")
+
+        volume_calls = [
+            c for c in chain.filter.call_args_list
+            if c.args and c.args[0] == "volume"
+        ]
+        assert len(volume_calls) == 0
+
+
+# ---------------------------------------------------------------------------
+# render_video – audio strip integration
+# ---------------------------------------------------------------------------
+
+class TestRenderVideoAudioStrips:
+    @patch("pavo.pavo._mix_audio_with_strips")
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_audio_strips_trigger_mix(self, mock_strips, mock_render, mock_mix, tmp_path):
+        """When an audio strip is present, _mix_audio_with_strips must be called."""
+        mock_render.return_value = []
+
+        timeline_data = {
+            "timeline": {
+                "n_frames": 10,
+                "background": "#000000",
+                "tracks": [
+                    {
+                        "track_id": 0,
+                        "strips": [
+                            {
+                                "asset": {"type": "audio", "src": "voice.mp3", "volume": 0.8},
+                                "start": 0,
+                                "video_start_frame": 0,
+                                "length": 10,
+                                "effect": None,
+                                "transition": {},
+                            }
+                        ],
+                    }
+                ],
+            },
+            "output": {"fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "audio_strip.json"
+        _write_json(str(json_file), timeline_data)
+
+        render_video(str(json_file), str(tmp_path / "out.mp4"))
+
+        mock_mix.assert_called_once()
+        # No global soundtrack – second arg must be None.
+        assert mock_mix.call_args[0][1] is None
+        # Audio strips list must contain the strip we defined.
+        audio_strips_arg = mock_mix.call_args[0][2]
+        assert len(audio_strips_arg) == 1
+        assert audio_strips_arg[0]["src"] == "voice.mp3"
+        assert audio_strips_arg[0]["volume"] == 0.8
+
+    @patch("pavo.pavo._mix_audio_with_strips")
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_audio_strips_with_soundtrack_passed_to_mix(
+        self, mock_strips, mock_render, mock_mix, tmp_path
+    ):
+        """Soundtrack src should be forwarded to _mix_audio_with_strips."""
+        mock_render.return_value = []
+
+        timeline_data = {
+            "timeline": {
+                "n_frames": 10,
+                "background": "#000000",
+                "soundtrack": {"src": "music.mp3"},
+                "tracks": [
+                    {
+                        "track_id": 0,
+                        "strips": [
+                            {
+                                "asset": {"type": "audio", "src": "sfx.mp3"},
+                                "start": 5,
+                                "video_start_frame": 0,
+                                "length": 5,
+                                "effect": None,
+                                "transition": {},
+                            }
+                        ],
+                    }
+                ],
+            },
+            "output": {"fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "audio_and_track.json"
+        _write_json(str(json_file), timeline_data)
+
+        render_video(str(json_file), str(tmp_path / "out.mp4"))
+
+        mock_mix.assert_called_once()
+        # Second arg is the effective soundtrack (no ducking → original src).
+        assert mock_mix.call_args[0][1] == "music.mp3"
+
+    @patch("pavo.pavo._add_audio_to_video")
+    @patch("pavo.pavo._mix_audio_with_strips")
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_no_audio_strips_still_uses_add_audio(
+        self, mock_strips, mock_render, mock_mix, mock_add_audio, tmp_path
+    ):
+        """Without audio strips, _add_audio_to_video is used (not _mix_audio_with_strips)."""
+        mock_render.return_value = []
+
+        timeline_data = {
+            "timeline": {
+                "n_frames": 5,
+                "background": "#000000",
+                "soundtrack": {"src": "music.mp3"},
+                "tracks": [],
+            },
+            "output": {"fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "only_soundtrack.json"
+        _write_json(str(json_file), timeline_data)
+
+        render_video(str(json_file), str(tmp_path / "out.mp4"))
+
+        mock_mix.assert_not_called()
         mock_add_audio.assert_called_once()

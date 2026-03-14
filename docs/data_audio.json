@@ -1,0 +1,83 @@
+{
+    "timeline": {
+        "n_frames": 75,
+        "background": "#1a1a2e",
+        "soundtrack": {
+            "src": "path/to/background_music.mp3",
+            "effect": "fadeOut"
+        },
+        "tracks": [
+            {
+                "track_id": 0,
+                "strips": [
+                    {
+                        "asset": {
+                            "type": "image",
+                            "src": "path/to/intro.jpg"
+                        },
+                        "start": 0,
+                        "video_start_frame": 0,
+                        "length": 25,
+                        "effect": "zoomIn",
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade",
+                            "duration": 5
+                        }
+                    },
+                    {
+                        "asset": {
+                            "type": "video",
+                            "src": "path/to/clip.mp4"
+                        },
+                        "start": 25,
+                        "video_start_frame": 0,
+                        "length": 50,
+                        "effect": null,
+                        "transition": {
+                            "in": "fade",
+                            "out": "fade",
+                            "duration": 5
+                        }
+                    }
+                ]
+            },
+            {
+                "track_id": 1,
+                "strips": [
+                    {
+                        "asset": {
+                            "type": "audio",
+                            "src": "path/to/voiceover.mp3",
+                            "volume": 0.9,
+                            "start": 5
+                        },
+                        "start": 0,
+                        "video_start_frame": 0,
+                        "length": 50,
+                        "effect": null,
+                        "transition": {}
+                    },
+                    {
+                        "asset": {
+                            "type": "audio",
+                            "src": "path/to/sfx_whoosh.mp3",
+                            "volume": 0.5
+                        },
+                        "start": 60,
+                        "video_start_frame": 0,
+                        "length": 15,
+                        "effect": null,
+                        "transition": {}
+                    }
+                ]
+            }
+        ]
+    },
+    "output": {
+        "format": "mp4",
+        "fps": 25,
+        "width": 1280,
+        "height": 720
+    }
+}

@@ -147,6 +147,79 @@ render_video('timeline.json', 'output/video.mp4')
 | `audio_ducking` | `bool` | `false` | Enable automatic volume ducking of `soundtrack` during detected speech segments. |
 | `ducking_reduction_db` | `float` | `10.0` | Volume reduction (in dB) applied to the soundtrack during speech. Requires `openai-whisper`. |
 
+#### Audio Tracks
+
+In addition to a global `soundtrack`, you can attach audio assets directly to individual strips
+by setting `"type": "audio"` in the asset definition.  Each audio strip is mixed with the
+global soundtrack (if any) using FFmpeg `adelay` + `amix` filters, so you can layer
+voice‑overs, sound effects, or per‑segment music without pre‑mixing your files.
+
+**Required field:** `src`  
+**Optional fields:** `volume` (float, default `1.0`), `start` (frame offset within the strip)
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "soundtrack": {
+      "src": "path/to/background_music.mp3",
+      "effect": "fadeOut"
+    },
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {"type": "image", "src": "path/to/intro.jpg"},
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 25,
+            "effect": "zoomIn",
+            "transition": {"in": "fade", "out": "fade"}
+          }
+        ]
+      },
+      {
+        "track_id": 1,
+        "strips": [
+          {
+            "asset": {
+              "type": "audio",
+              "src": "path/to/voiceover.mp3",
+              "volume": 0.9,
+              "start": 5
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 50,
+            "effect": null,
+            "transition": {}
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+| Audio asset field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `src` | `string` | ✅ | — | Path to the audio file (MP3, WAV, AAC, etc.). |
+| `volume` | `float` | ❌ | `1.0` | Playback volume (e.g. `0.5` for half volume, `1.5` for 50 % louder). |
+| `start` | `number` | ❌ | `0` | Frame offset within the audio asset where playback begins. Added to the strip's timeline `start` position to determine the absolute video position in milliseconds. |
+
+> **Note:** Audio strips are mixed with the global `soundtrack` (if present) using
+> FFmpeg's `amix` filter with `normalize=0` so that individual volumes are
+> preserved rather than being normalised to fit a single output level.
+> Audio ducking (if enabled) applies only to the global `soundtrack`.
+
 #### Error handling
 
 `render_video` raises descriptive exceptions for common mistakes:
