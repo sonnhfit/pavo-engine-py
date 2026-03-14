@@ -86,6 +86,72 @@ class TestValidDocuments:
         result = validate_timeline_json(data)
         assert result.timeline.tracks[0].strips[0].video_start_frame == 5
 
+    def test_video_strip_trim_start_seconds(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start": 2.5},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.trim_start == 2.5
+        assert result.timeline.tracks[0].strips[0].asset.trim_end is None
+
+    def test_video_strip_trim_end_seconds(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_end": 10.0},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.trim_end == 10.0
+        assert result.timeline.tracks[0].strips[0].asset.trim_start is None
+
+    def test_video_strip_trim_start_and_end_seconds(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start": 1.0, "trim_end": 5.0},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        asset = result.timeline.tracks[0].strips[0].asset
+        assert asset.trim_start == 1.0
+        assert asset.trim_end == 5.0
+
+    def test_video_strip_trim_start_frame(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start_frame": 30},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.trim_start_frame == 30
+
+    def test_video_strip_trim_end_frame(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_end_frame": 150},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.trim_end_frame == 150
+
+    def test_video_strip_trim_start_frame_and_end_frame(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start_frame": 25, "trim_end_frame": 100},
+            "start": 0,
+            "length": 25,
+        }
+        result = validate_timeline_json(data)
+        asset = result.timeline.tracks[0].strips[0].asset
+        assert asset.trim_start_frame == 25
+        assert asset.trim_end_frame == 100
+
     def test_transition_fields(self):
         data = _minimal_timeline()
         data["timeline"]["tracks"][0]["strips"][0]["transition"] = {
@@ -346,3 +412,94 @@ class TestInvalidFieldValues:
         data["timeline"]["n_frames"] = -1
         with pytest.raises(ValueError, match="Timeline JSON validation failed"):
             validate_timeline_json(data)
+
+    def test_trim_fields_on_non_video_asset(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "image", "src": "img.jpg", "trim_start": 1.0},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError, match="trim"):
+            validate_timeline_json(data)
+
+    def test_trim_fields_on_text_asset(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "text", "content": "Hi", "trim_start_frame": 5},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError, match="trim"):
+            validate_timeline_json(data)
+
+    def test_trim_start_negative_seconds(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start": -1.0},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError):
+            validate_timeline_json(data)
+
+    def test_trim_end_zero_seconds(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_end": 0},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError):
+            validate_timeline_json(data)
+
+    def test_trim_start_frame_negative(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_start_frame": -1},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError):
+            validate_timeline_json(data)
+
+    def test_trim_end_frame_zero(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {"type": "video", "src": "clip.mp4", "trim_end_frame": 0},
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError):
+            validate_timeline_json(data)
+
+    def test_trim_start_and_trim_start_frame_both_set(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {
+                "type": "video",
+                "src": "clip.mp4",
+                "trim_start": 1.0,
+                "trim_start_frame": 25,
+            },
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError, match="trim_start"):
+            validate_timeline_json(data)
+
+    def test_trim_end_and_trim_end_frame_both_set(self):
+        data = _minimal_timeline()
+        data["timeline"]["tracks"][0]["strips"][0] = {
+            "asset": {
+                "type": "video",
+                "src": "clip.mp4",
+                "trim_end": 5.0,
+                "trim_end_frame": 125,
+            },
+            "start": 0,
+            "length": 5,
+        }
+        with pytest.raises(ValueError, match="trim_end"):
+            validate_timeline_json(data)
+
