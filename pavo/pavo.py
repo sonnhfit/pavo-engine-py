@@ -231,6 +231,110 @@ def _detect_speech_segments(timeline, fps):
     return speech_segments
 
 
+def _collect_audio_strips(timeline, fps):
+    """Collect per-strip audio assets from the timeline.
+
+    Parameters
+    ----------
+    timeline : dict
+        The parsed ``timeline`` object from the JSON specification.
+    fps : float
+        Frames-per-second of the output video (used to convert frame numbers
+        to milliseconds).
+
+    Returns
+    -------
+    list of dict
+        Each dict contains:
+
+        - ``src`` (str): path to the audio file.
+        - ``start_ms`` (int): delay in milliseconds from the start of the video.
+        - ``volume`` (float): volume level (default ``1.0``).
+    """
+    audio_strips = []
+    for track in timeline.get("tracks", []):
+        for strip_data in track.get("strips", []):
+            asset = strip_data.get("asset", {})
+            if asset.get("type") != "audio":
+                continue
+            src = asset.get("src", "")
+            if not src:
+                continue
+            strip_start_frame = strip_data.get("start", 0)
+            # ``asset.start`` is an optional frame offset *within* the strip.
+            asset_start_offset = asset.get("start", 0)
+            total_start_frame = strip_start_frame + asset_start_offset
+            start_ms = total_start_frame * 1000 // fps
+            volume = float(asset.get("volume", 1.0))
+            audio_strips.append(
+                {"src": src, "start_ms": start_ms, "volume": volume}
+            )
+    return audio_strips
+
+
+def _mix_audio_with_strips(video_path, soundtrack_path, audio_strips, output_path):
+    """Mix a video with a global soundtrack and per-strip audio assets.
+
+    Each per-strip audio source is delayed to its correct position using the
+    FFmpeg ``adelay`` filter and then combined with the optional global
+    soundtrack via the ``amix`` filter.  When *audio_strips* is empty the
+    function falls back to the simpler :func:`_add_audio_to_video` merge.
+
+    Parameters
+    ----------
+    video_path : str
+        Path to the silent (video-only) MP4 file.
+    soundtrack_path : str or None
+        Path to the global soundtrack file, or ``None`` if there is no
+        global soundtrack.
+    audio_strips : list of dict
+        Per-strip audio assets as returned by :func:`_collect_audio_strips`.
+        Each dict must have ``src``, ``start_ms``, and ``volume`` keys.
+    output_path : str
+        Destination path for the final video with mixed audio.
+    """
+    if not audio_strips:
+        _add_audio_to_video(video_path, soundtrack_path, output_path)
+        return
+
+    video_in = ffmpeg.input(video_path)
+    audio_streams = []
+
+    if soundtrack_path:
+        audio_streams.append(ffmpeg.input(soundtrack_path).audio)
+
+    for strip in audio_strips:
+        stream = ffmpeg.input(strip["src"]).audio
+        delay_ms = strip["start_ms"]
+        volume = strip["volume"]
+        if delay_ms > 0:
+            stream = stream.filter("adelay", f"{delay_ms}|{delay_ms}")
+        if abs(volume - 1.0) > 1e-9:
+            stream = stream.filter("volume", volume=volume)
+        audio_streams.append(stream)
+
+    if len(audio_streams) == 1:
+        mixed_audio = audio_streams[0]
+    else:
+        mixed_audio = ffmpeg.filter(
+            audio_streams, "amix", inputs=len(audio_streams), normalize=0
+        )
+
+    (
+        ffmpeg
+        .output(
+            video_in.video,
+            mixed_audio,
+            output_path,
+            vcodec="copy",
+            acodec="aac",
+            shortest=None,
+        )
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+
 def render_video(json_path, output="output.mp4"):
     """Render a JSON timeline specification to an MP4 video file.
 
@@ -284,8 +388,9 @@ def render_video(json_path, output="output.mp4"):
         print(f"[pavo] Rendering timeline: {json_path}")
         list_strip = render(json_path, video_temp_dir)
 
+        audio_strips = _collect_audio_strips(timeline, fps)
         video_only = output
-        has_audio = bool(soundtrack_src)
+        has_audio = bool(soundtrack_src) or bool(audio_strips)
         if has_audio:
             video_only = os.path.join(tmp_root, "video_only.mp4")
 
@@ -301,7 +406,7 @@ def render_video(json_path, output="output.mp4"):
 
         if has_audio:
             effective_soundtrack = soundtrack_src
-            if audio_ducking:
+            if audio_ducking and soundtrack_src:
                 print("[pavo] Detecting speech segments for audio ducking...")
                 speech_segs = _detect_speech_segments(timeline, fps)
                 if speech_segs:
@@ -317,8 +422,14 @@ def render_video(json_path, output="output.mp4"):
                     effective_soundtrack = ducked_audio
                 else:
                     print("[pavo] No speech detected; skipping audio ducking.")
-            print(f"[pavo] Adding soundtrack: {effective_soundtrack}")
-            _add_audio_to_video(video_only, effective_soundtrack, output)
+            if audio_strips:
+                print(f"[pavo] Mixing {len(audio_strips)} audio strip(s) with video...")
+                _mix_audio_with_strips(
+                    video_only, effective_soundtrack, audio_strips, output
+                )
+            else:
+                print(f"[pavo] Adding soundtrack: {effective_soundtrack}")
+                _add_audio_to_video(video_only, effective_soundtrack, output)
 
         print(f"[pavo] Done → {output}")
     finally:

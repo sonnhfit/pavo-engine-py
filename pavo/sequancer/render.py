@@ -15,6 +15,11 @@ def get_strips_from_json(json_data):
             asset = item["asset"]
             asset_type = asset.get("type")
 
+            # Audio strips carry no visual content; they are processed
+            # separately in pavo.pavo._collect_audio_strips.
+            if asset_type == "audio":
+                continue
+
             transition = item.get("transition") or {}
             try:
                 transition_duration = int(transition.get("duration", 5))
