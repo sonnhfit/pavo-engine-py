@@ -55,6 +55,19 @@ class AssetModel(BaseModel):
     animation: Optional[str] = Field(
         None, description="Optional animation tag (stored for future use)."
     )
+    # Video trimming fields (video type only)
+    trim_start: Optional[float] = Field(
+        None, ge=0, description="Trim start time in seconds (video only)."
+    )
+    trim_end: Optional[float] = Field(
+        None, gt=0, description="Trim end time in seconds (video only)."
+    )
+    trim_start_frame: Optional[int] = Field(
+        None, ge=0, description="Trim start position in frames (video only)."
+    )
+    trim_end_frame: Optional[int] = Field(
+        None, ge=1, description="Trim end position in frames (video only)."
+    )
 
     @model_validator(mode="after")
     def _check_required_fields(self) -> "AssetModel":
@@ -64,6 +77,16 @@ class AssetModel(BaseModel):
             raise ValueError(
                 f"{self.type} assets must include a 'src' field with the file path"
             )
+        # Trim fields are only valid for video assets
+        trim_fields = (self.trim_start, self.trim_end, self.trim_start_frame, self.trim_end_frame)
+        if any(v is not None for v in trim_fields) and self.type != "video":
+            raise ValueError("trim fields (trim_start, trim_end, trim_start_frame, trim_end_frame) are only valid for video assets")
+        # Cannot specify both time-based and frame-based start trim
+        if self.trim_start is not None and self.trim_start_frame is not None:
+            raise ValueError("specify either 'trim_start' (seconds) or 'trim_start_frame' (frames), not both")
+        # Cannot specify both time-based and frame-based end trim
+        if self.trim_end is not None and self.trim_end_frame is not None:
+            raise ValueError("specify either 'trim_end' (seconds) or 'trim_end_frame' (frames), not both")
         return self
 
 

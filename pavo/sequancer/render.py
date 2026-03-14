@@ -9,6 +9,7 @@ def read_json_video(file_path):
 
 
 def get_strips_from_json(json_data):
+    fps = float((json_data.get("output") or {}).get("fps", 25.0))
     strips = []
     for track in json_data["timeline"]["tracks"]:
         for item in track["strips"]:
@@ -44,9 +45,20 @@ def get_strips_from_json(json_data):
                     animation=asset.get("animation"),
                 )
             else:
+                # Resolve trim parameters: convert frame-based values to seconds.
+                trim_start = asset.get("trim_start")
+                trim_end = asset.get("trim_end")
+                trim_start_frame = asset.get("trim_start_frame")
+                trim_end_frame = asset.get("trim_end_frame")
+                if trim_start is None and trim_start_frame is not None:
+                    trim_start = trim_start_frame / fps
+                if trim_end is None and trim_end_frame is not None:
+                    trim_end = trim_end_frame / fps
                 strip = Strip(
                     **common_kwargs,
                     media_source=asset.get("src"),
+                    trim_start=trim_start,
+                    trim_end=trim_end,
                 )
             strips.append(strip)
 

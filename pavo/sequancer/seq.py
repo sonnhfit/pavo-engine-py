@@ -47,6 +47,8 @@ class Strip:
         transition_in=None,
         transition_out=None,
         transition_duration=5,
+        trim_start=None,
+        trim_end=None,
     ):
         self.type = type
         self.media_source = media_source
@@ -73,6 +75,10 @@ class Strip:
         self.transition_out = transition_out
         self.transition_duration = transition_duration
 
+        # Video-only trim attributes (in seconds; None means no trim on that end)
+        self.trim_start = trim_start
+        self.trim_end = trim_end
+
     def load_media_source(self):
         pass
 
@@ -84,10 +90,15 @@ class Strip:
         pass
 
     def read_video_by_frame(self, frame: int, temp_dir: str = "./temp"):
+        input_kwargs = {}
+        if self.trim_start is not None:
+            input_kwargs["ss"] = self.trim_start
+        if self.trim_end is not None:
+            input_kwargs["to"] = self.trim_end
 
         out, err = (
             ffmpeg
-            .input(self.media_source)
+            .input(self.media_source, **input_kwargs)
             .filter('select', 'gte(n,{})'.format(frame))
             .output('pipe:', vframes=1, format='image2', vcodec='mjpeg')
             .run(capture_stdout=True)

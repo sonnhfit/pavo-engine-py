@@ -147,6 +147,63 @@ render_video('timeline.json', 'output/video.mp4')
 | `audio_ducking` | `bool` | `false` | Enable automatic volume ducking of `soundtrack` during detected speech segments. |
 | `ducking_reduction_db` | `float` | `10.0` | Volume reduction (in dB) applied to the soundtrack during speech. Requires `openai-whisper`. |
 
+#### Video Trimming
+
+Specify optional `trim_start` / `trim_end` (seconds) **or** `trim_start_frame` / `trim_end_frame` (integer frame numbers) inside a `video` asset to use only a sub-segment of the source file.  
+If only one boundary is given the other defaults to the natural start/end of the source.
+
+```json
+{
+  "timeline": {
+    "n_frames": 50,
+    "background": "#000000",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "path/to/long_clip.mp4",
+              "trim_start": 5.0,
+              "trim_end": 15.0
+            },
+            "start": 0,
+            "length": 50
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+Frame-based trimming example (equivalent to the above at 25 fps):
+
+```json
+{
+  "asset": {
+    "type": "video",
+    "src": "path/to/long_clip.mp4",
+    "trim_start_frame": 125,
+    "trim_end_frame": 375
+  }
+}
+```
+
+| `asset` field | Type | Default | Description |
+|---|---|---|---|
+| `trim_start` | `float` | `null` | Start of the used segment in seconds (≥ 0). Video only. |
+| `trim_end` | `float` | `null` | End of the used segment in seconds (> 0). Video only. |
+| `trim_start_frame` | `int` | `null` | Start of the used segment in frames (≥ 0). Video only. Cannot be combined with `trim_start`. |
+| `trim_end_frame` | `int` | `null` | End of the used segment in frames (≥ 1). Video only. Cannot be combined with `trim_end`. |
+
 #### Error handling
 
 `render_video` raises descriptive exceptions for common mistakes:
@@ -191,6 +248,10 @@ Pavo Engine validates every timeline file against a strict [Pydantic](https://do
 | `asset` | `size` | int | ❌ | ≥ 1, default `24` |
 | `asset` | `color` | string | ❌ | default `"white"` |
 | `asset` | `position.x/y` | number \| `"center"` | ❌ | default `0` |
+| `asset` | `trim_start` | float | ❌ | ≥ 0, video only |
+| `asset` | `trim_end` | float | ❌ | > 0, video only |
+| `asset` | `trim_start_frame` | int | ❌ | ≥ 0, video only, mutually exclusive with `trim_start` |
+| `asset` | `trim_end_frame` | int | ❌ | ≥ 1, video only, mutually exclusive with `trim_end` |
 | `transition` | `in` | string | ❌ | `fade`\|`slide`\|`wipe`\|`dissolve` |
 | `transition` | `out` | string | ❌ | `fade`\|`slide`\|`wipe`\|`dissolve` |
 | `transition` | `duration` | int | ❌ | ≥ 1, default `5` |
