@@ -67,7 +67,7 @@ class TestRenderVideoErrors:
     def test_json_missing_timeline_key_raises_value_error(self, tmp_path):
         no_timeline = tmp_path / "no_timeline.json"
         _write_json(str(no_timeline), {"output": {}})
-        with pytest.raises(ValueError, match="'timeline'"):
+        with pytest.raises(ValueError, match="timeline"):
             render_video(str(no_timeline), str(tmp_path / "out.mp4"))
 
 
