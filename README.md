@@ -248,6 +248,7 @@ Pavo Engine validates every timeline file against a strict [Pydantic](https://do
 | `asset` | `size` | int | ❌ | ≥ 1, default `24` |
 | `asset` | `color` | string | ❌ | default `"white"` |
 | `asset` | `position.x/y` | number \| `"center"` | ❌ | default `0` |
+| `asset` | `animation` | string | ❌ | `null`; one of `fadeIn`, `slideUp`, `typewriter` (text only) |
 | `asset` | `trim_start` | float | ❌ | ≥ 0, video only |
 | `asset` | `trim_end` | float | ❌ | > 0, video only |
 | `asset` | `trim_start_frame` | int | ❌ | ≥ 0, video only, mutually exclusive with `trim_start` |
@@ -505,7 +506,15 @@ Add text on top of your video or image content using `"type": "text"` in any str
 | `size` | `number` | ❌ | `24` | Font size in pixels. |
 | `color` | `string` | ❌ | `"white"` | Font color (FFmpeg color name or hex, e.g. `"red"`, `"#ff0000"`). |
 | `position` | `object` | ❌ | `{"x": 0, "y": 0}` | Top-left anchor. Values can be numbers or `"center"` (e.g. `{"x": "center", "y": 50}`). |
-| `animation` | `string` | ❌ | `null` | Optional animation tag (stored for future use, e.g. `"fadeIn"`). |
+| `animation` | `string` | ❌ | `null` | Animation preset for the text strip. See the table below for supported values. |
+
+#### Text Animation Presets
+
+| Preset | Description | FFmpeg filter |
+|---|---|---|
+| `fadeIn` | Alpha fades from 0 → 1 over the first 0.5 s. | `drawtext` with `alpha='if(lt(t,0.5),t/0.5,1)'` |
+| `slideUp` | Text enters 50 px below its final position and slides up over the first 0.5 s. | `drawtext` with time-based `y` expression |
+| `typewriter` | Text fades in quickly over 0.5 s, simulating characters appearing one by one. | `drawtext` with `alpha='min(1,2*t)'` |
 
 > **Tip:** Text strips in a higher `track_id` are drawn on top of strips with a lower `track_id`.
 

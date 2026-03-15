@@ -503,3 +503,69 @@ class TestInvalidFieldValues:
         with pytest.raises(ValueError, match="trim_end"):
             validate_timeline_json(data)
 
+
+# ---------------------------------------------------------------------------
+# Animation preset validation
+# ---------------------------------------------------------------------------
+
+class TestAnimationPresets:
+    def _text_strip_with_animation(self, animation):
+        data = {
+            "timeline": {
+                "n_frames": 10,
+                "background": "#000000",
+                "tracks": [
+                    {
+                        "track_id": 0,
+                        "strips": [
+                            {
+                                "asset": {
+                                    "type": "text",
+                                    "content": "Hello",
+                                    "animation": animation,
+                                },
+                                "start": 0,
+                                "length": 10,
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+        return data
+
+    def test_fadein_preset_is_valid(self):
+        data = self._text_strip_with_animation("fadeIn")
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.animation == "fadeIn"
+
+    def test_slideup_preset_is_valid(self):
+        data = self._text_strip_with_animation("slideUp")
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.animation == "slideUp"
+
+    def test_typewriter_preset_is_valid(self):
+        data = self._text_strip_with_animation("typewriter")
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.animation == "typewriter"
+
+    def test_animation_none_is_valid(self):
+        data = self._text_strip_with_animation(None)
+        result = validate_timeline_json(data)
+        assert result.timeline.tracks[0].strips[0].asset.animation is None
+
+    def test_unknown_preset_is_rejected(self):
+        data = self._text_strip_with_animation("spinIn")
+        with pytest.raises(ValueError, match="unsupported animation preset"):
+            validate_timeline_json(data)
+
+    def test_unknown_preset_error_lists_valid_options(self):
+        data = self._text_strip_with_animation("zoomIn")
+        with pytest.raises(ValueError, match="fadeIn"):
+            validate_timeline_json(data)
+
+    def test_empty_string_preset_is_rejected(self):
+        data = self._text_strip_with_animation("")
+        with pytest.raises(ValueError, match="unsupported animation preset"):
+            validate_timeline_json(data)
+

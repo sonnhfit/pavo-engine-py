@@ -12,6 +12,13 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+# Supported text animation presets.
+# Each name maps to a predefined FFmpeg filter applied during text rendering.
+#   fadeIn    – alpha fade from transparent to opaque over the first 0.5 s.
+#   slideUp   – text enters from 50 px below its final position over 0.5 s.
+#   typewriter – text fades in quickly (0.5 s), simulating characters appearing.
+SUPPORTED_ANIMATION_PRESETS: frozenset[str] = frozenset({"fadeIn", "slideUp", "typewriter"})
+
 
 class SoundtrackModel(BaseModel):
     """Optional background music track."""
@@ -53,8 +60,22 @@ class AssetModel(BaseModel):
         None, description="Top-left anchor for the text."
     )
     animation: Optional[str] = Field(
-        None, description="Optional animation tag (stored for future use)."
+        None,
+        description=(
+            "Optional animation preset for text strips. "
+            f"Supported values: {sorted(SUPPORTED_ANIMATION_PRESETS)}."
+        ),
     )
+
+    @field_validator("animation", mode="before")
+    @classmethod
+    def _validate_animation(cls, v: Any) -> Any:
+        if v is not None and v not in SUPPORTED_ANIMATION_PRESETS:
+            raise ValueError(
+                f"unsupported animation preset '{v}'; "
+                f"valid options are: {sorted(SUPPORTED_ANIMATION_PRESETS)}"
+            )
+        return v
     # Video trimming fields (video type only)
     trim_start: Optional[float] = Field(
         None, ge=0, description="Trim start time in seconds (video only)."
