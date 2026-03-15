@@ -18,6 +18,8 @@ import sys
 import time
 import glob
 
+from pavo.schema import SUPPORTED_ANIMATION_PRESETS
+
 
 class Effect:
     def __init__(self):
@@ -26,6 +28,15 @@ class Effect:
 
 # một element trong sequence
 SUPPORTED_TRANSITIONS = {"fade", "slide", "wipe", "dissolve"}
+
+# Extra drawtext kwargs applied for each animation preset.
+# "slideUp" is handled separately inside apply_text() because it requires
+# modifying the computed y expression rather than adding a new keyword.
+ANIMATION_PRESET_FILTERS: Dict[str, Dict[str, str]] = {
+    "fadeIn": {"alpha": "if(lt(t,0.5),t/0.5,1)"},
+    "slideUp": {},
+    "typewriter": {"alpha": "min(1,2*t)"},
+}
 
 
 class Strip:
@@ -149,6 +160,11 @@ class Strip:
         x = "(w-tw)/2" if str(raw_x).lower() == "center" else str(raw_x)
         y = "(h-th)/2" if str(raw_y).lower() == "center" else str(raw_y)
 
+        # slideUp: offset y so the text starts below its final position and
+        # slides upward into place over the first 0.5 seconds.
+        if self.animation == "slideUp":
+            y = f"({y})+50*(1-min(1,t/0.5))"
+
         kwargs = {
             "text": self.content,
             "fontsize": self.size,
@@ -159,6 +175,10 @@ class Strip:
 
         if self.font:
             kwargs["fontfile"] = self.font
+
+        # Merge any extra drawtext kwargs defined for this animation preset.
+        if self.animation and self.animation in ANIMATION_PRESET_FILTERS:
+            kwargs.update(ANIMATION_PRESET_FILTERS[self.animation])
 
         return img.filter("drawtext", **kwargs)
 

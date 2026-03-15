@@ -297,3 +297,107 @@ class TestSequenceRenderStripListText:
         assert image_stream.filter.call_count == 1
         assert after_first_text.filter.call_count == 1
         assert result is after_second_text
+
+
+# ---------------------------------------------------------------------------
+# Animation preset integration in apply_text()
+# ---------------------------------------------------------------------------
+
+class TestApplyTextAnimationPresets:
+    def _make_stream(self):
+        stream = MagicMock()
+        stream.filter.return_value = stream
+        return stream
+
+    def test_fadein_preset_adds_alpha_expression(self):
+        strip = Strip(
+            type="text",
+            content="Fade In",
+            size=24,
+            color="white",
+            position={"x": 10, "y": 20},
+            animation="fadeIn",
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        assert "alpha" in call_kwargs
+        assert "lt(t" in call_kwargs["alpha"]
+
+    def test_typewriter_preset_adds_alpha_expression(self):
+        strip = Strip(
+            type="text",
+            content="Type Me",
+            size=24,
+            color="white",
+            position={"x": 0, "y": 0},
+            animation="typewriter",
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        assert "alpha" in call_kwargs
+        assert "min(1" in call_kwargs["alpha"]
+
+    def test_slideup_preset_modifies_y_expression(self):
+        strip = Strip(
+            type="text",
+            content="Slide Up",
+            size=24,
+            color="white",
+            position={"x": 0, "y": 100},
+            animation="slideUp",
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        # y should contain the original value and an offset expression
+        assert "100" in call_kwargs["y"]
+        assert "50" in call_kwargs["y"]
+        assert "alpha" not in call_kwargs
+
+    def test_slideup_preset_with_center_y(self):
+        strip = Strip(
+            type="text",
+            content="Slide Center",
+            size=24,
+            color="white",
+            position={"x": 0, "y": "center"},
+            animation="slideUp",
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        # Should contain the center expression wrapped with offset
+        assert "(h-th)/2" in call_kwargs["y"]
+        assert "50" in call_kwargs["y"]
+
+    def test_no_animation_does_not_add_extra_kwargs(self):
+        strip = Strip(
+            type="text",
+            content="No Anim",
+            size=24,
+            color="white",
+            position={"x": 10, "y": 20},
+            animation=None,
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        assert "alpha" not in call_kwargs
+        assert call_kwargs["y"] == "20"
+
+    def test_fadein_alpha_not_applied_to_slideup(self):
+        """slideUp should NOT include an alpha expression."""
+        strip = Strip(
+            type="text",
+            content="Up",
+            size=24,
+            color="white",
+            position={"x": 0, "y": 50},
+            animation="slideUp",
+        )
+        stream = self._make_stream()
+        strip.apply_text(stream)
+        call_kwargs = stream.filter.call_args[1]
+        assert "alpha" not in call_kwargs
