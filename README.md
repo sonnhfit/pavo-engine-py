@@ -606,6 +606,66 @@ Add styled subtitle captions using `"type": "subtitle"` in a strip's asset. Subt
 
 ## 🔧 Advanced Usage
 
+### Loading Assets from Remote HTTP/HTTPS URLs
+
+`asset.src` (and `soundtrack.src`) can be a **local file path** or a **remote HTTP/HTTPS URL**.  
+The engine automatically downloads and caches each remote asset before rendering, so repeated renders reuse the cached copy.
+
+```python
+from pavo import render_video
+
+render_video('timeline.json', 'output/video.mp4')
+```
+
+Example timeline JSON with remote assets:
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "soundtrack": {
+      "src": "https://cdn.example.com/background_music.mp3",
+      "effect": "fadeOut"
+    },
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "image",
+              "src": "https://cdn.example.com/intro.jpg"
+            },
+            "start": 0,
+            "length": 25,
+            "effect": "zoomIn"
+          },
+          {
+            "asset": {
+              "type": "video",
+              "src": "https://cdn.example.com/clip.mp4"
+            },
+            "start": 25,
+            "length": 50
+          }
+        ]
+      }
+    ]
+  },
+  "output": {"format": "mp4", "fps": 25, "width": 1280, "height": 720}
+}
+```
+
+Downloaded assets are cached in `~/.pavo/cache/` by default.  
+Pass `cache_dir` to `render_video()` to override the cache location:
+
+```python
+render_video('timeline.json', 'output/video.mp4', cache_dir='/tmp/my_cache')
+```
+
+If a remote URL is unreachable, a `ValueError` is raised with a descriptive message before rendering starts.
+
 ### Using S3 for Asset Management
 
 ```python

@@ -61,7 +61,7 @@ class AssetModel(BaseModel):
     )
     # Media assets (image / video)
     src: Optional[str] = Field(
-        None, description="File path for image or video assets."
+        None, description="File path or remote HTTP/HTTPS URL for image or video assets."
     )
     # Text / subtitle fields
     content: Optional[str] = Field(None, description="Text content (text/subtitle strips only).")
@@ -102,7 +102,7 @@ class AssetModel(BaseModel):
             raise ValueError(f"{self.type} assets must include a non-empty 'content' field")
         if self.type in ("image", "video") and not self.src:
             raise ValueError(
-                f"{self.type} assets must include a 'src' field with the file path"
+                f"{self.type} assets must include a 'src' field with the file path or remote URL"
             )
         # background_color is only valid for subtitle assets
         if self.background_color is not None and self.type != "subtitle":

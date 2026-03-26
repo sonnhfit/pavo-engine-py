@@ -232,7 +232,7 @@ def _detect_speech_segments(timeline, fps):
     return speech_segments
 
 
-def render_video(json_path, output="output.mp4"):
+def render_video(json_path, output="output.mp4", cache_dir=None):
     """Render a JSON timeline specification to an MP4 video file.
 
     Parameters
@@ -241,13 +241,17 @@ def render_video(json_path, output="output.mp4"):
         Path to the JSON timeline file.
     output : str
         Path for the output MP4 file.
+    cache_dir : str, optional
+        Directory used to cache remotely downloaded assets (HTTP/HTTPS URLs in
+        ``asset.src``).  When *None* the default ``~/.pavo/cache/`` is used.
 
     Raises
     ------
     FileNotFoundError
         If *json_path* does not exist.
     ValueError
-        If the JSON content is invalid or missing required fields.
+        If the JSON content is invalid or missing required fields, or if a
+        remote asset URL is unreachable.
     """
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"JSON file not found: {json_path}")
@@ -257,6 +261,11 @@ def render_video(json_path, output="output.mp4"):
             video_json = json.load(fh)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in {json_path}: {exc}") from exc
+
+    # Resolve any remote HTTP/HTTPS asset URLs before validation and rendering.
+    from pavo.preparation.preparetion import resolve_remote_assets, _DEFAULT_CACHE_DIR
+    effective_cache_dir = cache_dir if cache_dir is not None else _DEFAULT_CACHE_DIR
+    video_json = resolve_remote_assets(video_json, effective_cache_dir)
 
     validate_timeline_json(video_json)
 
@@ -284,8 +293,14 @@ def render_video(json_path, output="output.mp4"):
     os.makedirs(render_temp_dir, exist_ok=True)
 
     try:
+        # Write the resolved JSON (remote URLs replaced with local paths) to a
+        # temporary file so the rendering pipeline can read it from disk.
+        resolved_json_path = os.path.join(tmp_root, "resolved.json")
+        with open(resolved_json_path, "w") as fh:
+            json.dump(video_json, fh)
+
         print(f"[pavo] Rendering timeline: {json_path}")
-        list_strip = render(json_path, video_temp_dir)
+        list_strip = render(resolved_json_path, video_temp_dir)
 
         video_only = output
         has_audio = bool(soundtrack_src)
