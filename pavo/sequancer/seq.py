@@ -42,6 +42,7 @@ class Strip:
         font=None,
         size=24,
         color="white",
+        background_color=None,
         position=None,
         animation=None,
         transition_in=None,
@@ -62,11 +63,12 @@ class Strip:
 
         self.video_info = None
 
-        # Text overlay attributes
+        # Text / subtitle overlay attributes
         self.content = content
         self.font = font
         self.size = size
         self.color = color
+        self.background_color = background_color
         self.position = position if position is not None else {"x": 0, "y": 0}
         self.animation = animation
 
@@ -120,13 +122,13 @@ class Strip:
         elif self.type == "video":
             vid = self.read_video_by_frame(frame, temp_dir)
             return vid
-        elif self.type == "text":
+        elif self.type in ("text", "subtitle"):
             return None
         else:
             return None
 
     def apply_text(self, img):
-        """Apply this text strip's content to an existing FFmpeg stream via drawtext.
+        """Apply this text/subtitle strip's content to an existing FFmpeg stream via drawtext.
 
         Parameters
         ----------
@@ -137,6 +139,12 @@ class Strip:
         -------
         ffmpeg stream
             The stream with the ``drawtext`` filter applied.
+
+        Notes
+        -----
+        For ``type == "subtitle"`` strips, a background box is rendered behind
+        the text when ``background_color`` is set, using the FFmpeg ``drawtext``
+        ``box`` / ``boxcolor`` parameters.
         """
         if not self.content:
             return img
@@ -159,6 +167,11 @@ class Strip:
 
         if self.font:
             kwargs["fontfile"] = self.font
+
+        # Subtitle type: render a background box when background_color is set.
+        if self.type == "subtitle" and self.background_color:
+            kwargs["box"] = 1
+            kwargs["boxcolor"] = self.background_color
 
         return img.filter("drawtext", **kwargs)
 
@@ -354,7 +367,7 @@ class Sequence:
     def render_strip_list(self, strips: List[Strip], frame: int):
         img = None
         for strip in strips:
-            if strip.type == "text":
+            if strip.type in ("text", "subtitle"):
                 if img is not None:
                     img = strip.apply_text(img)
             elif img is None:

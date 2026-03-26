@@ -8,9 +8,28 @@ rendering.  A :class:`pydantic.ValidationError` is translated into a
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Regex accepting #RGB, #RRGGBB, or #RRGGBBAA hex color strings.
+_HEX_COLOR_RE = re.compile(r"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+
+
+def _validate_color(value: Any, field_name: str = "color") -> Any:
+    """Return *value* if it is a valid FFmpeg color string, else raise."""
+    if value is None:
+        return value
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    # Hex colors must match the expected pattern; named colors are passed through.
+    if value.startswith("#") and not _HEX_COLOR_RE.match(value):
+        raise ValueError(
+            f"{field_name} hex value '{value}' is invalid; "
+            "expected #RGB, #RRGGBB, or #RRGGBBAA format"
+        )
+    return value
 
 
 class SoundtrackModel(BaseModel):
@@ -35,20 +54,23 @@ class PositionModel(BaseModel):
 
 
 class AssetModel(BaseModel):
-    """A single asset attached to a strip (image, video, or text)."""
+    """A single asset attached to a strip (image, video, text, or subtitle)."""
 
-    type: Literal["image", "video", "text"] = Field(
-        ..., description="Asset type: 'image', 'video', or 'text'."
+    type: Literal["image", "video", "text", "subtitle"] = Field(
+        ..., description="Asset type: 'image', 'video', 'text', or 'subtitle'."
     )
     # Media assets (image / video)
     src: Optional[str] = Field(
         None, description="File path for image or video assets."
     )
-    # Text-only fields
-    content: Optional[str] = Field(None, description="Text content (text strips only).")
+    # Text / subtitle fields
+    content: Optional[str] = Field(None, description="Text content (text/subtitle strips only).")
     font: Optional[str] = Field(None, description="Path to a TTF/OTF font file.")
     size: Optional[int] = Field(24, ge=1, description="Font size in pixels.")
     color: Optional[str] = Field("white", description="FFmpeg color string or hex.")
+    background_color: Optional[str] = Field(
+        None, description="Background box color for subtitle strips (FFmpeg color string or hex)."
+    )
     position: Optional[PositionModel] = Field(
         None, description="Top-left anchor for the text."
     )
@@ -69,14 +91,22 @@ class AssetModel(BaseModel):
         None, ge=1, description="Trim end position in frames (video only)."
     )
 
+    @field_validator("color", "background_color", mode="before")
+    @classmethod
+    def _validate_color_field(cls, v: Any) -> Any:
+        return _validate_color(v)
+
     @model_validator(mode="after")
     def _check_required_fields(self) -> "AssetModel":
-        if self.type == "text" and not self.content:
-            raise ValueError("text assets must include a non-empty 'content' field")
+        if self.type in ("text", "subtitle") and not self.content:
+            raise ValueError(f"{self.type} assets must include a non-empty 'content' field")
         if self.type in ("image", "video") and not self.src:
             raise ValueError(
                 f"{self.type} assets must include a 'src' field with the file path"
             )
+        # background_color is only valid for subtitle assets
+        if self.background_color is not None and self.type != "subtitle":
+            raise ValueError("'background_color' is only valid for subtitle assets")
         # Trim fields are only valid for video assets
         trim_fields = (self.trim_start, self.trim_end, self.trim_start_frame, self.trim_end_frame)
         if any(v is not None for v in trim_fields) and self.type != "video":

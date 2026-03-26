@@ -33,7 +33,7 @@ def get_strips_from_json(json_data):
                 transition_duration=transition_duration,
             )
 
-            if asset_type == "text":
+            if asset_type in ("text", "subtitle"):
                 strip = Strip(
                     **common_kwargs,
                     media_source=None,
@@ -41,6 +41,7 @@ def get_strips_from_json(json_data):
                     font=asset.get("font"),
                     size=asset.get("size", 24),
                     color=asset.get("color", "white"),
+                    background_color=asset.get("background_color"),
                     position=asset.get("position", {"x": 0, "y": 0}),
                     animation=asset.get("animation"),
                 )
