@@ -1,12 +1,20 @@
-import requests
-from tqdm import tqdm
-import time
-from retrying import retry
+import copy
+import hashlib
 import json
-import os
 import logging
+import os
+import time
+from urllib.parse import urlparse
+
 import boto3
+import requests
 from PIL import Image
+from retrying import retry
+from tqdm import tqdm
+
+
+# Default directory used to cache remotely downloaded assets.
+_DEFAULT_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".pavo", "cache")
 
 
 def download_video(url, destination, retries=5, chunk_size=1024):
@@ -63,6 +71,112 @@ def download_image(url, path):
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
         raise
+
+
+def is_remote_url(src: str) -> bool:
+    """Return ``True`` if *src* is an HTTP or HTTPS URL, ``False`` otherwise."""
+    try:
+        parsed = urlparse(src)
+        return parsed.scheme in ("http", "https")
+    except Exception:
+        return False
+
+
+def download_remote_asset(url: str, cache_dir: str = _DEFAULT_CACHE_DIR) -> str:
+    """Download a remote HTTP/HTTPS asset and return the local cached path.
+
+    The file is stored in *cache_dir* using an MD5 hash of the URL as the
+    filename so subsequent calls with the same URL reuse the cached copy.
+
+    Parameters
+    ----------
+    url:
+        Remote HTTP or HTTPS URL to download.
+    cache_dir:
+        Directory where downloaded files are cached.
+        Defaults to ``~/.pavo/cache/``.
+
+    Returns
+    -------
+    str
+        Absolute path to the locally cached file.
+
+    Raises
+    ------
+    ValueError
+        If *url* is not a valid HTTP/HTTPS URL or the server is unreachable.
+    """
+    if not is_remote_url(url):
+        raise ValueError(f"Not a valid HTTP/HTTPS URL: {url!r}")
+
+    os.makedirs(cache_dir, exist_ok=True)
+
+    # Build a stable local filename: MD5 of the URL + original extension.
+    url_hash = hashlib.md5(url.encode()).hexdigest()
+    parsed_path = urlparse(url).path
+    _, ext = os.path.splitext(parsed_path)
+    cached_filename = url_hash + (ext if ext else "")
+    cached_path = os.path.join(cache_dir, cached_filename)
+
+    if os.path.exists(cached_path):
+        print(f"[pavo] Using cached asset: {cached_path}")
+        return cached_path
+
+    # Verify the URL is reachable before attempting a full download.
+    try:
+        head = requests.head(url, timeout=10, allow_redirects=True)
+        head.raise_for_status()
+    except requests.RequestException as exc:
+        raise ValueError(
+            f"Remote asset URL is unreachable: {url!r} — {exc}"
+        ) from exc
+
+    download_video(url, cached_path)
+    return cached_path
+
+
+def resolve_remote_assets(data: dict, cache_dir: str = _DEFAULT_CACHE_DIR) -> dict:
+    """Replace remote URLs in *data*'s ``asset.src`` fields with local paths.
+
+    Walks the timeline JSON, downloads any HTTP/HTTPS ``src`` values (using
+    the local cache to avoid repeated downloads), and returns a deep copy of
+    *data* with all remote URLs replaced by absolute local file paths.
+
+    The ``soundtrack.src`` field is also resolved if it is a remote URL.
+
+    Parameters
+    ----------
+    data:
+        Parsed timeline JSON dict (the top-level object).
+    cache_dir:
+        Directory used for the local asset cache.
+
+    Returns
+    -------
+    dict
+        Deep copy of *data* with remote ``src`` values replaced by local paths.
+    """
+    data = copy.deepcopy(data)
+    timeline = data.get("timeline", {})
+
+    # Resolve soundtrack src if it is a remote URL.
+    soundtrack = timeline.get("soundtrack")
+    if isinstance(soundtrack, dict):
+        src = soundtrack.get("src")
+        if src and is_remote_url(src):
+            print(f"[pavo] Downloading remote soundtrack: {src}")
+            soundtrack["src"] = download_remote_asset(src, cache_dir)
+
+    # Resolve each strip asset src.
+    for track in timeline.get("tracks", []):
+        for strip in track.get("strips", []):
+            asset = strip.get("asset", {})
+            src = asset.get("src")
+            if src and is_remote_url(src):
+                print(f"[pavo] Downloading remote asset: {src}")
+                asset["src"] = download_remote_asset(src, cache_dir)
+
+    return data
 
 
 def download_file_from_s3(
