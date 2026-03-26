@@ -242,11 +242,12 @@ Pavo Engine validates every timeline file against a strict [Pydantic](https://do
 | `strips[*]` | `length` | int | ✅ | ≥ 1 |
 | `strips[*]` | `video_start_frame` | int | ❌ | ≥ 0, default `0` |
 | `strips[*]` | `transition` | object | ❌ | — |
-| `asset` | `type` | string | ✅ | `"image"` \| `"video"` \| `"text"` |
+| `asset` | `type` | string | ✅ | `"image"` \| `"video"` \| `"text"` \| `"subtitle"` |
 | `asset` | `src` | string | ✅ for image/video | file path |
-| `asset` | `content` | string | ✅ for text | non-empty |
+| `asset` | `content` | string | ✅ for text/subtitle | non-empty |
 | `asset` | `size` | int | ❌ | ≥ 1, default `24` |
-| `asset` | `color` | string | ❌ | default `"white"` |
+| `asset` | `color` | string | ❌ | default `"white"` (hex or FFmpeg color name) |
+| `asset` | `background_color` | string | ❌ | subtitle only; hex or FFmpeg color name (e.g. `"black@0.5"`) |
 | `asset` | `position.x/y` | number \| `"center"` | ❌ | default `0` |
 | `asset` | `trim_start` | float | ❌ | ≥ 0, video only |
 | `asset` | `trim_end` | float | ❌ | > 0, video only |
@@ -508,6 +509,78 @@ Add text on top of your video or image content using `"type": "text"` in any str
 | `animation` | `string` | ❌ | `null` | Optional animation tag (stored for future use, e.g. `"fadeIn"`). |
 
 > **Tip:** Text strips in a higher `track_id` are drawn on top of strips with a lower `track_id`.
+
+### Subtitle Overlays
+
+Add styled subtitle captions using `"type": "subtitle"` in a strip's asset. Subtitle strips work like text overlays but additionally support a **background box** behind the text for better readability.
+
+**Required fields:** `content`  
+**Optional fields:** `font`, `size`, `color`, `background_color`, `position`, `animation`
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#1a1a2e",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "path/to/clip.mp4"
+            },
+            "start": 0,
+            "video_start_frame": 0,
+            "length": 75,
+            "effect": null,
+            "transition": {"in": "fade", "out": "fade"}
+          }
+        ]
+      },
+      {
+        "track_id": 1,
+        "strips": [
+          {
+            "asset": {
+              "type": "subtitle",
+              "content": "Welcome to Pavo Engine",
+              "font": "/path/to/font.ttf",
+              "size": 36,
+              "color": "#ffffff",
+              "background_color": "black@0.5",
+              "position": {"x": "center", "y": 650}
+            },
+            "start": 0,
+            "length": 50
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 25,
+    "width": 1280,
+    "height": 720
+  }
+}
+```
+
+| Subtitle asset field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `content` | `string` | ✅ | — | The subtitle text to display. |
+| `font` | `string` | ❌ | system default | Path to a `.ttf` / `.otf` font file. |
+| `size` | `number` | ❌ | `24` | Font size in pixels (must be ≥ 1). |
+| `color` | `string` | ❌ | `"white"` | Font color – FFmpeg color name (e.g. `"white"`) or hex (`"#ffffff"`, `"#fff"`). |
+| `background_color` | `string` | ❌ | `null` | Background box color – FFmpeg color name or hex, optionally with alpha (e.g. `"black@0.5"`, `"#000000"`). Omit to render text without a background box. |
+| `position` | `object` | ❌ | `{"x": 0, "y": 0}` | Top-left anchor. Values can be numbers or `"center"` (e.g. `{"x": "center", "y": 650}`). |
+| `animation` | `string` | ❌ | `null` | Optional animation tag (stored for future use, e.g. `"fadeIn"`). |
+
+> **Color format:** Both `color` and `background_color` accept any FFmpeg-compatible color name (e.g. `"white"`, `"black"`, `"yellow"`) or a hex string in `#RGB`, `#RRGGBB`, or `#RRGGBBAA` format. You may also append an alpha value with `@` notation (e.g. `"black@0.5"`).
+
+> **Tip:** Place subtitle strips on a higher `track_id` than your video/image track so they appear on top.
 
 ## 🎯 Use Cases
 
