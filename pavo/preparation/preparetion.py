@@ -6,7 +6,6 @@ import os
 import time
 from urllib.parse import urlparse
 
-import boto3
 import requests
 from PIL import Image
 from retrying import retry
@@ -192,6 +191,7 @@ def download_file_from_s3(
         os.makedirs(folder_path)
 
     try:
+        import boto3
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=s3_acess_key,
