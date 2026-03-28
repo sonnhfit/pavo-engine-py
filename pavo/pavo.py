@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import tempfile
 
@@ -232,7 +233,42 @@ def _detect_speech_segments(timeline, fps):
     return speech_segments
 
 
-def render_video(json_path, output="output.mp4"):
+def resolve_placeholders(data, variables):
+    """Recursively replace ``${VAR_NAME}`` placeholders in *data* using *variables*.
+
+    Parameters
+    ----------
+    data:
+        Any JSON-compatible value (dict, list, str, or scalar).
+    variables : dict
+        Mapping of variable names to replacement strings.
+
+    Returns
+    -------
+    The same structure with all placeholders replaced.
+
+    Raises
+    ------
+    ValueError
+        If a placeholder is found that has no matching key in *variables*.
+    """
+    if isinstance(data, dict):
+        return {k: resolve_placeholders(v, variables) for k, v in data.items()}
+    if isinstance(data, list):
+        return [resolve_placeholders(item, variables) for item in data]
+    if isinstance(data, str):
+        def _replace(match):
+            name = match.group(1)
+            if name not in variables:
+                raise ValueError(
+                    f"Placeholder '${{{name}}}' has no matching key in the provided variables"
+                )
+            return str(variables[name])
+        return re.sub(r"\$\{([^}]+)\}", _replace, data)
+    return data
+
+
+def render_video(json_path, output="output.mp4", variables=None):
     """Render a JSON timeline specification to an MP4 video file.
 
     Parameters
@@ -241,13 +277,17 @@ def render_video(json_path, output="output.mp4"):
         Path to the JSON timeline file.
     output : str
         Path for the output MP4 file.
+    variables : dict, optional
+        Key-value map used to resolve ``${VAR_NAME}`` placeholders found in
+        any string value of the JSON before validation and rendering.
 
     Raises
     ------
     FileNotFoundError
         If *json_path* does not exist.
     ValueError
-        If the JSON content is invalid or missing required fields.
+        If the JSON content is invalid, missing required fields, or a
+        placeholder has no matching key in *variables*.
     """
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"JSON file not found: {json_path}")
@@ -257,6 +297,9 @@ def render_video(json_path, output="output.mp4"):
             video_json = json.load(fh)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in {json_path}: {exc}") from exc
+
+    if variables:
+        video_json = resolve_placeholders(video_json, variables)
 
     validate_timeline_json(video_json)
 

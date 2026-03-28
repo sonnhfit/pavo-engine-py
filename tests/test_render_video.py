@@ -8,6 +8,7 @@ import pytest
 
 from pavo.pavo import (
     render_video,
+    resolve_placeholders,
     _add_audio_to_video,
     _create_background_frame,
     _build_ducking_expr,
@@ -593,3 +594,145 @@ class TestRenderVideoAudioDucking:
         mock_detect.assert_not_called()
         mock_duck.assert_not_called()
         mock_add_audio.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# resolve_placeholders – unit tests
+# ---------------------------------------------------------------------------
+
+class TestResolvePlaceholders:
+    def test_string_substitution(self):
+        result = resolve_placeholders("${FOO}/bar", {"FOO": "baz"})
+        assert result == "baz/bar"
+
+    def test_multiple_placeholders_in_string(self):
+        result = resolve_placeholders("${A}-${B}", {"A": "hello", "B": "world"})
+        assert result == "hello-world"
+
+    def test_dict_values_substituted(self):
+        data = {"src": "${ASSET_DIR}/clip.mp4", "title": "My Video"}
+        result = resolve_placeholders(data, {"ASSET_DIR": "/assets"})
+        assert result == {"src": "/assets/clip.mp4", "title": "My Video"}
+
+    def test_nested_dict_and_list(self):
+        data = {"tracks": [{"src": "${DIR}/a.jpg"}, {"src": "${DIR}/b.jpg"}]}
+        result = resolve_placeholders(data, {"DIR": "/imgs"})
+        assert result["tracks"][0]["src"] == "/imgs/a.jpg"
+        assert result["tracks"][1]["src"] == "/imgs/b.jpg"
+
+    def test_non_string_values_unchanged(self):
+        data = {"count": 5, "flag": True, "value": None}
+        result = resolve_placeholders(data, {})
+        assert result == data
+
+    def test_missing_placeholder_raises_value_error(self):
+        with pytest.raises(ValueError, match=r"\$\{MISSING\}"):
+            resolve_placeholders("${MISSING}", {})
+
+    def test_no_placeholders_unchanged(self):
+        result = resolve_placeholders("plain string", {})
+        assert result == "plain string"
+
+    def test_empty_variables_with_no_placeholders(self):
+        data = {"key": "value", "num": 42}
+        assert resolve_placeholders(data, {}) == data
+
+
+# ---------------------------------------------------------------------------
+# render_video – placeholder variables integration
+# ---------------------------------------------------------------------------
+
+class TestRenderVideoPlaceholders:
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_variables_resolved_before_render(
+        self, mock_strips, mock_render, tmp_path
+    ):
+        """Placeholders in JSON are substituted before rendering."""
+        mock_render.return_value = []
+
+        timeline_with_placeholders = {
+            "timeline": {
+                "n_frames": 5,
+                "background": "#000000",
+                "tracks": [
+                    {
+                        "track_id": 0,
+                        "strips": [
+                            {
+                                "asset": {"type": "image", "src": "${ASSET_DIR}/img.jpg"},
+                                "start": 0,
+                                "video_start_frame": 0,
+                                "length": 5,
+                                "effect": None,
+                                "transition": {},
+                            }
+                        ],
+                    }
+                ],
+            },
+            "output": {"format": "mp4", "fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "template.json"
+        _write_json(str(json_file), timeline_with_placeholders)
+        output = str(tmp_path / "out.mp4")
+
+        render_video(str(json_file), output, variables={"ASSET_DIR": "/my/assets"})
+
+        assert mock_render.called
+
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_missing_variable_raises_value_error(
+        self, mock_strips, mock_render, tmp_path
+    ):
+        """render_video raises ValueError when a placeholder has no matching key."""
+        timeline_with_missing_var = {
+            "timeline": {
+                "n_frames": 5,
+                "background": "#000000",
+                "tracks": [
+                    {
+                        "track_id": 0,
+                        "strips": [
+                            {
+                                "asset": {
+                                    "type": "image",
+                                    "src": "${UNDEFINED_VAR}/img.jpg",
+                                },
+                                "start": 0,
+                                "video_start_frame": 0,
+                                "length": 5,
+                                "effect": None,
+                                "transition": {},
+                            }
+                        ],
+                    }
+                ],
+            },
+            "output": {"format": "mp4", "fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "missing_var.json"
+        _write_json(str(json_file), timeline_with_missing_var)
+
+        with pytest.raises(ValueError, match=r"UNDEFINED_VAR"):
+            render_video(
+                str(json_file),
+                str(tmp_path / "out.mp4"),
+                variables={"OTHER_VAR": "value"},
+            )
+
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_no_variables_arg_works_as_before(
+        self, mock_strips, mock_render, tmp_path
+    ):
+        """render_video without variables= behaves exactly as before."""
+        mock_render.return_value = []
+
+        json_file = tmp_path / "timeline.json"
+        _write_json(str(json_file), MINIMAL_TIMELINE)
+
+        render_video(str(json_file), str(tmp_path / "out.mp4"))
+
+        assert mock_render.called
