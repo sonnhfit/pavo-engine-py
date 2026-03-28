@@ -219,6 +219,57 @@ except ValueError as exc:
     print(f"Invalid timeline JSON: {exc}")
 ```
 
+#### Placeholder variables (dynamic pipelines)
+
+Any string value in the timeline JSON may contain `${VAR_NAME}` placeholders.
+Pass a `variables` dictionary to `render_video` and every placeholder is
+substituted before validation or rendering takes place.  This lets you keep a
+single reusable template and inject runtime values such as paths, titles, and
+timestamps.
+
+**Template file (`template.json`)**
+
+```json
+{
+  "timeline": {
+    "n_frames": 75,
+    "background": "#000000",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": { "type": "video", "src": "${ASSET_DIR}/intro.mp4" },
+            "start": 0,
+            "length": 75
+          }
+        ]
+      }
+    ],
+    "soundtrack": { "src": "${ASSET_DIR}/music.mp3" }
+  },
+  "output": { "format": "mp4", "fps": 25, "width": 1280, "height": 720 }
+}
+```
+
+**Rendering with variables**
+
+```python
+from pavo import render_video
+
+render_video(
+    'template.json',
+    'output/final.mp4',
+    variables={
+        "ASSET_DIR": "/projects/my_video/assets",
+    },
+)
+```
+
+> **Note:** Placeholders are resolved only in the *JSON content*.  If a
+> placeholder has no matching key in `variables` a `ValueError` is raised
+> naming the missing variable.
+
 ## 🗂️ JSON Schema
 
 Pavo Engine validates every timeline file against a strict [Pydantic](https://docs.pydantic.dev/) schema before rendering begins.  Any missing or invalid field raises a `ValueError` with a clear, human-readable message that lists every problem found.
