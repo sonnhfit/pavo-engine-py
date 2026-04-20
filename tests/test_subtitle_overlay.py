@@ -67,7 +67,7 @@ class TestSubtitleSchemaValidation:
             validate_timeline_json(_minimal_subtitle_timeline(size=0))
 
     def test_subtitle_missing_content_raises(self):
-        with pytest.raises(ValueError, match="non-empty 'content'"):
+        with pytest.raises(ValueError, match="content.*src|src.*content"):
             validate_timeline_json(
                 {
                     "timeline": {
