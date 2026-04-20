@@ -140,14 +140,14 @@ class TestRenderVideoAudio:
     def test_soundtrack_triggers_audio_merge(
         self, mock_strips, mock_render, mock_audio, tmp_path
     ):
-        """When the JSON has a soundtrack, _add_audio_to_video must be called."""
+        """When the JSON has a soundtrack (no effect), _add_audio_to_video must be called."""
         mock_render.return_value = []
 
         timeline = {
             "timeline": {
                 "n_frames": 5,
                 "background": "#000000",
-                "soundtrack": {"src": "music.mp3", "effect": "fadeOut"},
+                "soundtrack": {"src": "music.mp3"},
                 "tracks": [],
             },
             "output": {"fps": 25, "width": 320, "height": 240},
@@ -160,6 +160,44 @@ class TestRenderVideoAudio:
         mock_audio.assert_called_once()
         args, _ = mock_audio.call_args
         assert args[1] == "music.mp3"
+
+    @patch("pavo.pavo._add_audio_to_video")
+    @patch("pavo.pavo._apply_soundtrack_effect")
+    @patch("pavo.pavo.render")
+    @patch("pavo.pavo.render_video_from_strips")
+    def test_soundtrack_effect_is_applied(
+        self, mock_strips, mock_render, mock_effect, mock_audio, tmp_path
+    ):
+        """When a soundtrack effect is specified, _apply_soundtrack_effect must be called."""
+        mock_render.return_value = []
+        # Simulate the effect writing an output file.
+        effected_path = str(tmp_path / "effected_audio.aac")
+
+        def _fake_effect(src, effect, out, fps=25.0):
+            open(out, "w").close()  # create the file so downstream code can read it
+
+        mock_effect.side_effect = _fake_effect
+
+        timeline = {
+            "timeline": {
+                "n_frames": 5,
+                "background": "#000000",
+                "soundtrack": {"src": "music.mp3", "effect": "fadeOut"},
+                "tracks": [],
+            },
+            "output": {"fps": 25, "width": 320, "height": 240},
+        }
+        json_file = tmp_path / "with_effect.json"
+        _write_json(str(json_file), timeline)
+
+        render_video(str(json_file), str(tmp_path / "out.mp4"))
+
+        mock_effect.assert_called_once()
+        effect_args, _ = mock_effect.call_args
+        assert effect_args[0] == "music.mp3"
+        assert effect_args[1] == "fadeOut"
+        # _add_audio_to_video should still be called once (with processed path).
+        mock_audio.assert_called_once()
 
     @patch("pavo.pavo.render")
     @patch("pavo.pavo.render_video_from_strips")

@@ -77,6 +77,7 @@ class TestValidDocuments:
 
     def test_video_strip(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4"},
             "start": 0,
@@ -88,6 +89,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_start_seconds(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_start": 2.5},
             "start": 0,
@@ -99,6 +101,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_end_seconds(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_end": 10.0},
             "start": 0,
@@ -110,6 +113,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_start_and_end_seconds(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_start": 1.0, "trim_end": 5.0},
             "start": 0,
@@ -122,6 +126,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_start_frame(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_start_frame": 30},
             "start": 0,
@@ -132,6 +137,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_end_frame(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_end_frame": 150},
             "start": 0,
@@ -142,6 +148,7 @@ class TestValidDocuments:
 
     def test_video_strip_trim_start_frame_and_end_frame(self):
         data = _minimal_timeline()
+        data["timeline"]["n_frames"] = 25
         data["timeline"]["tracks"][0]["strips"][0] = {
             "asset": {"type": "video", "src": "clip.mp4", "trim_start_frame": 25, "trim_end_frame": 100},
             "start": 0,
@@ -230,10 +237,12 @@ class TestMissingRequiredFields:
             validate_timeline_json({"output": {}})
 
     def test_missing_n_frames(self):
+        # n_frames is now optional; when omitted it is auto-computed from strips.
         data = _minimal_timeline()
         del data["timeline"]["n_frames"]
-        with pytest.raises(ValueError, match="n_frames"):
-            validate_timeline_json(data)
+        result = validate_timeline_json(data)
+        # Auto-computed: strip start=0, length=10 → n_frames=10
+        assert result.timeline.n_frames == 10
 
     def test_missing_tracks(self):
         # tracks defaults to empty list when omitted
@@ -298,9 +307,15 @@ class TestMissingRequiredFields:
 
 class TestInvalidFieldValues:
     def test_n_frames_zero(self):
-        # n_frames=0 is allowed (empty render)
-        data = _minimal_timeline()
-        data["timeline"]["n_frames"] = 0
+        # n_frames=0 is allowed (empty render with no strips)
+        data = {
+            "timeline": {
+                "n_frames": 0,
+                "background": "#000000",
+                "tracks": [],
+            },
+            "output": {"fps": 25, "width": 640, "height": 480},
+        }
         result = validate_timeline_json(data)
         assert result.timeline.n_frames == 0
 
@@ -324,7 +339,7 @@ class TestInvalidFieldValues:
 
     def test_invalid_asset_type(self):
         data = _minimal_timeline()
-        data["timeline"]["tracks"][0]["strips"][0]["asset"]["type"] = "audio"
+        data["timeline"]["tracks"][0]["strips"][0]["asset"]["type"] = "3d_animation"
         with pytest.raises(ValueError):
             validate_timeline_json(data)
 

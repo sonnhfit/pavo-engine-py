@@ -2,12 +2,13 @@ import json
 import os
 import shutil
 import tempfile
+from typing import Callable, List, Optional, Tuple
 
 import ffmpeg
 from tqdm import tqdm
 
 from pavo.schema import validate_timeline_json
-from pavo.sequancer.render import render
+from pavo.sequancer.render import render, get_audio_strips_from_json
 
 
 def clear_temp(temp_dir="temp"):
@@ -39,10 +40,31 @@ def render_video_from_strips(
     background="#000000",
     width=None,
     height=None,
+    on_progress: Optional[Callable[[float], None]] = None,
 ):
-    """Render a list of FFmpeg strip objects to an MP4 video file."""
+    """Render a list of FFmpeg strip objects to an MP4 video file.
+
+    Parameters
+    ----------
+    list_strip:
+        List of FFmpeg filter-chain objects (one per frame).
+    output:
+        Destination path for the rendered video.
+    temp_dir:
+        Directory for intermediate JPEG frames.
+    fps:
+        Frames per second of the output video.
+    background:
+        Hex color string for empty/background frames.
+    width, height:
+        Output frame dimensions.
+    on_progress:
+        Optional callback invoked with a float in ``[0.0, 1.0]`` after each
+        frame is written, allowing callers to track rendering progress.
+    """
     bg_path = os.path.join(temp_dir, "bg.jpg")
     bg_created = False
+    total = len(list_strip)
 
     for i, strip in enumerate(tqdm(list_strip, desc="Rendering frames")):
         frame_path = f"{temp_dir}/im-{i:06d}.jpg"
@@ -65,6 +87,9 @@ def render_video_from_strips(
                 ).output(frame_path, vframes=1).overwrite_output().run(
                     capture_stdout=True, capture_stderr=True
                 )
+
+        if on_progress is not None and total > 0:
+            on_progress((i + 1) / total)
 
     (
         ffmpeg.input(
@@ -145,6 +170,131 @@ def _apply_audio_ducking(audio_path, speech_segments, reduction_db, output_path)
         .input(audio_path)
         .filter("volume", volume=expr, eval="frame")
         .output(output_path)
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+
+def _apply_soundtrack_effect(audio_path: str, effect: str, output_path: str, fps: float = 25.0):
+    """Apply a fade effect to a soundtrack using FFmpeg's ``afade`` filter.
+
+    Parameters
+    ----------
+    audio_path:
+        Path to the input audio file.
+    effect:
+        One of ``'fadeIn'``, ``'fadeOut'``, or ``'fadeInOut'``.
+    output_path:
+        Destination path for the processed audio file.
+    fps:
+        Frames per second (used to determine default fade duration).
+    """
+    if effect not in ("fadeIn", "fadeOut", "fadeInOut"):
+        shutil.copy(audio_path, output_path)
+        return
+
+    try:
+        probe = ffmpeg.probe(audio_path)
+        duration = float(probe.get("format", {}).get("duration", 0))
+    except Exception:
+        duration = 0.0
+
+    fade_dur = min(1.0, duration * 0.1) if duration > 0 else 1.0
+
+    stream = ffmpeg.input(audio_path)
+    audio = stream.audio
+
+    if effect in ("fadeIn", "fadeInOut"):
+        audio = audio.filter("afade", type="in", start_time=0, duration=fade_dur)
+    if effect in ("fadeOut", "fadeInOut") and duration > fade_dur:
+        audio = audio.filter(
+            "afade", type="out",
+            start_time=max(0.0, duration - fade_dur),
+            duration=fade_dur,
+        )
+
+    (
+        ffmpeg
+        .output(audio, output_path)
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+
+def _mix_audio_strips(
+    video_path: str,
+    audio_strips,
+    output_path: str,
+    fps: float,
+    existing_audio_path: Optional[str] = None,
+):
+    """Mix per-strip audio clips into the video, optionally alongside a soundtrack.
+
+    Each audio strip is delayed to its ``start_frame / fps`` position and
+    mixed using FFmpeg's ``amix`` filter.
+
+    Parameters
+    ----------
+    video_path:
+        Path to the silent (or soundtracked) video file.
+    audio_strips:
+        Iterable of :class:`~pavo.sequancer.seq.Strip` objects with
+        ``type == 'audio'``.
+    output_path:
+        Destination path for the output video with mixed audio.
+    fps:
+        Frames per second (used to convert frame offsets to seconds).
+    existing_audio_path:
+        Optional path to an already-mixed audio track (e.g. the soundtrack).
+        When provided, it is mixed together with the strip audio clips.
+    """
+    inputs = []
+    filter_parts = []
+    n_inputs = 0
+
+    # Include pre-existing audio (soundtrack) as the first input if present.
+    if existing_audio_path:
+        inputs.append(ffmpeg.input(existing_audio_path).audio)
+        filter_parts.append(f"[{n_inputs}:a]")
+        n_inputs += 1
+
+    for strip in audio_strips:
+        if not strip.media_source or not os.path.exists(strip.media_source):
+            continue
+        delay_ms = int((strip.start_frame / fps) * 1000)
+        audio = ffmpeg.input(strip.media_source).audio
+        # Apply volume if specified.
+        if strip.volume is not None:
+            audio = audio.filter("volume", volume=strip.volume)
+        # Delay the clip using the adelay filter.
+        audio = audio.filter("adelay", f"{delay_ms}|{delay_ms}")
+        inputs.append(audio)
+        filter_parts.append(f"[{n_inputs}:a]")
+        n_inputs += 1
+
+    if not inputs:
+        # Nothing to mix; just copy.
+        shutil.copy(video_path, output_path)
+        return
+
+    video_in = ffmpeg.input(video_path)
+
+    if n_inputs == 1:
+        # Only one audio source; no mixing needed.
+        mixed_audio = inputs[0]
+    else:
+        mixed_audio = ffmpeg.filter(inputs, "amix", inputs=n_inputs, duration="longest")
+
+    (
+        ffmpeg
+        .output(
+            video_in.video,
+            mixed_audio,
+            output_path,
+            vcodec="copy",
+            acodec="aac",
+            shortest=None,
+        )
         .overwrite_output()
         .run(capture_stdout=True, capture_stderr=True)
     )
@@ -232,15 +382,70 @@ def _detect_speech_segments(timeline, fps):
     return speech_segments
 
 
-def render_video(json_path, output="output.mp4"):
-    """Render a JSON timeline specification to an MP4 video file.
+def _render_gif(frames_dir: str, output: str, fps: float, width: Optional[int] = None):
+    """Render JPEG frames in *frames_dir* to an animated GIF using FFmpeg.
+
+    Uses a two-pass approach (palettegen + paletteuse) for high-quality output.
+
+    Parameters
+    ----------
+    frames_dir:
+        Directory containing numbered ``im-NNNNNN.jpg`` frame files.
+    output:
+        Destination ``.gif`` path.
+    fps:
+        Frames per second of the animation.
+    width:
+        Optional output width in pixels (height scaled proportionally).
+        Defaults to 480 px when neither *width* nor source dimensions are known.
+    """
+    scale_w = str(width) if width else "480"
+    scale_filter = f"fps={fps},scale={scale_w}:-1:flags=lanczos"
+
+    palette_path = os.path.join(frames_dir, "palette.png")
+
+    # Pass 1: Generate color palette.
+    (
+        ffmpeg
+        .input(f"{frames_dir}/im-*.jpg", pattern_type="glob", framerate=fps)
+        .filter_multi_output("split")[0]
+        .filter("palettegen")
+        .output(palette_path)
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+    # Pass 2: Encode GIF using the palette.
+    frames_in = ffmpeg.input(
+        f"{frames_dir}/im-*.jpg", pattern_type="glob", framerate=fps
+    )
+    palette_in = ffmpeg.input(palette_path)
+    (
+        ffmpeg
+        .filter([frames_in, palette_in], "paletteuse")
+        .output(output)
+        .overwrite_output()
+        .run(capture_stdout=True, capture_stderr=True)
+    )
+
+
+def render_video(
+    json_path,
+    output="output.mp4",
+    on_progress: Optional[Callable[[float], None]] = None,
+):
+    """Render a JSON timeline specification to a video or GIF file.
 
     Parameters
     ----------
     json_path : str
         Path to the JSON timeline file.
     output : str
-        Path for the output MP4 file.
+        Path for the output file.  The container format is determined by the
+        ``output.format`` field in the JSON (default ``'mp4'``).
+    on_progress : callable, optional
+        A callback invoked with a ``float`` in ``[0.0, 1.0]`` after each
+        rendered frame.  Useful for progress bars in web services and APIs.
 
     Raises
     ------
@@ -268,11 +473,14 @@ def render_video(json_path, output="output.mp4"):
     fps = output_spec.get("fps", 25)
     width = output_spec.get("width")
     height = output_spec.get("height")
+    out_format = (output_spec.get("format") or "mp4").lower()
     background = timeline.get("background", "#000000")
     soundtrack = timeline.get("soundtrack", {})
     soundtrack_src = soundtrack.get("src") if isinstance(soundtrack, dict) else None
+    soundtrack_effect = soundtrack.get("effect") if isinstance(soundtrack, dict) else None
     audio_ducking = output_spec.get("audio_ducking", False)
     ducking_reduction_db = output_spec.get("ducking_reduction_db", 10.0)
+    workers = int(output_spec.get("workers") or 1)
 
     output_dir = os.path.dirname(os.path.abspath(output))
     os.makedirs(output_dir, exist_ok=True)
@@ -285,25 +493,55 @@ def render_video(json_path, output="output.mp4"):
 
     try:
         print(f"[pavo] Rendering timeline: {json_path}")
-        list_strip = render(json_path, video_temp_dir)
+        list_strip = render(json_path, video_temp_dir, workers=workers)
 
-        video_only = output
-        has_audio = bool(soundtrack_src)
-        if has_audio:
-            video_only = os.path.join(tmp_root, "video_only.mp4")
+        # Collect audio strips for later mixing.
+        audio_strips = get_audio_strips_from_json(video_json)
+        has_audio_strips = bool(audio_strips)
+
+        # Determine paths for intermediate files.
+        is_gif = out_format == "gif"
+        has_soundtrack = bool(soundtrack_src)
+        needs_audio_stage = has_soundtrack or has_audio_strips
+
+        # Stage 1: render video frames to a silent video file.
+        if is_gif:
+            # For GIF output we don't need an intermediate video; frames are used directly.
+            silent_video = os.path.join(tmp_root, "silent.mp4")
+        else:
+            silent_video = output if not needs_audio_stage else os.path.join(tmp_root, "silent.mp4")
 
         render_video_from_strips(
             list_strip,
-            output=video_only,
+            output=silent_video,
             temp_dir=render_temp_dir,
             fps=fps,
             background=background,
             width=width,
             height=height,
+            on_progress=on_progress,
         )
 
-        if has_audio:
-            effective_soundtrack = soundtrack_src
+        if is_gif:
+            print(f"[pavo] Encoding GIF: {output}")
+            _render_gif(render_temp_dir, output, fps=fps, width=width)
+            return
+
+        if not needs_audio_stage:
+            print(f"[pavo] Done → {output}")
+            return
+
+        # Stage 2: process soundtrack (effects + ducking).
+        effective_soundtrack = soundtrack_src
+        if has_soundtrack:
+            # Apply soundtrack fade effects.
+            if soundtrack_effect:
+                print(f"[pavo] Applying soundtrack effect: {soundtrack_effect}")
+                effected_audio = os.path.join(tmp_root, "effected_audio.aac")
+                _apply_soundtrack_effect(soundtrack_src, soundtrack_effect, effected_audio, fps)
+                effective_soundtrack = effected_audio
+
+            # Apply audio ducking if requested.
             if audio_ducking:
                 print("[pavo] Detecting speech segments for audio ducking...")
                 speech_segs = _detect_speech_segments(timeline, fps)
@@ -315,13 +553,25 @@ def render_video(json_path, output="output.mp4"):
                         f"-{ducking_reduction_db} dB)..."
                     )
                     _apply_audio_ducking(
-                        soundtrack_src, speech_segs, ducking_reduction_db, ducked_audio
+                        effective_soundtrack, speech_segs, ducking_reduction_db, ducked_audio
                     )
                     effective_soundtrack = ducked_audio
                 else:
                     print("[pavo] No speech detected; skipping audio ducking.")
+
+        # Stage 3: mix audio strips + soundtrack into the output video.
+        if has_audio_strips:
+            print(f"[pavo] Mixing {len(audio_strips)} audio strip(s) into video...")
+            _mix_audio_strips(
+                silent_video,
+                audio_strips,
+                output,
+                fps=fps,
+                existing_audio_path=effective_soundtrack,
+            )
+        elif has_soundtrack:
             print(f"[pavo] Adding soundtrack: {effective_soundtrack}")
-            _add_audio_to_video(video_only, effective_soundtrack, output)
+            _add_audio_to_video(silent_video, effective_soundtrack, output)
 
         print(f"[pavo] Done → {output}")
     finally:
