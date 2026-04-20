@@ -404,7 +404,7 @@ def _render_gif(frames_dir: str, output: str, fps: float, width: Optional[int] =
 
     palette_path = os.path.join(frames_dir, "palette.png")
 
-    # Pass 1: Generate colour palette.
+    # Pass 1: Generate color palette.
     (
         ffmpeg
         .input(f"{frames_dir}/im-*.jpg", pattern_type="glob", framerate=fps)

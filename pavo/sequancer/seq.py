@@ -44,7 +44,7 @@ def _parse_srt(text: str) -> List[Tuple[float, float, str]]:
         h1, m1, s1, ms1 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
         h2, m2, s2, ms2 = int(m.group(5)), int(m.group(6)), int(m.group(7)), int(m.group(8))
         start = h1 * 3600 + m1 * 60 + s1 + ms1 / 1000.0
-        end   = h2 * 3600 + m2 * 60 + s2 + ms2 / 1000.0
+        end = h2 * 3600 + m2 * 60 + s2 + ms2 / 1000.0
         content = m.group(9).strip()
         if content:
             results.append((start, end, content))
