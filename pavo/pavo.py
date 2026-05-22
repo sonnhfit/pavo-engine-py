@@ -20,12 +20,10 @@ def clear_temp(temp_dir="temp"):
 def _create_background_frame(color, width, height, output_path):
     """Generate a solid-color JPEG frame using FFmpeg."""
     hex_color = color.lstrip("#")
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
+    ffmpeg_color = f"0x{hex_color}"
     (
         ffmpeg
-        .input(f"color=c={r}:{g}:{b}:size={width}x{height}:rate=1", f="lavfi", t=1)
+        .input(f"color=c={ffmpeg_color}:size={width}x{height}:rate=1", f="lavfi", t=1)
         .output(output_path, vframes=1)
         .overwrite_output()
         .run(capture_stdout=True, capture_stderr=True)
@@ -72,9 +70,13 @@ def render_video_from_strips(
             os.remove(frame_path)
 
         if strip is not None:
-            strip.output(frame_path).run(
-                capture_stdout=True, capture_stderr=True
-            )
+            try:
+                strip.output(frame_path).run(
+                    capture_stdout=True, capture_stderr=True
+                )
+            except ffmpeg.Error as e:
+                print(f"\n[pavo] FFmpeg error at frame {i}:\n{e.stderr.decode()}", flush=True)
+                raise
         else:
             if not bg_created and width and height:
                 _create_background_frame(background, width, height, bg_path)

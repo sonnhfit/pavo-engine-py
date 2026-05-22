@@ -456,6 +456,9 @@ class Strip:
     ):
         if self.type == "image":
             img = self.read_image()
+            # Normalize to a compositing-safe pixel format (palette images like
+            # pal8 are incompatible with blend/overlay filters).
+            img = img.filter("format", "yuva420p")
             img = self._apply_fit(img, output_width, output_height)
             img = self._apply_media_effect(img, frame)
             img = self._apply_filters(img)
@@ -468,6 +471,8 @@ class Strip:
             return vid
         elif self.type == "watermark":
             img = self.read_image()
+            # Normalize pixel format for safe compositing.
+            img = img.filter("format", "yuva420p")
             img = self._apply_fit(img, output_width, output_height)
             img = self._apply_filters(img)
             img = self._apply_opacity(img)
@@ -675,14 +680,23 @@ class Strip:
         return base_img.overlay(cropped, x="0", y="0")
 
     def _apply_dissolve(self, base_img, strip_frame, progress):
-        """Dissolve transition: cross-blend strip with base image."""
+        """Dissolve transition: cross-blend strip with base image.
+
+        Uses an alpha-overlay approach so that inputs with different sizes and
+        pixel formats are handled correctly.  (The ``blend`` filter requires
+        both inputs to share the same size and format, which is not always
+        guaranteed.)
+        """
         alpha = max(0.0, min(1.0, progress))
-        blended = ffmpeg.filter(
-            [base_img, strip_frame],
-            "blend",
-            all_expr=f"A*(1-{alpha:.6f})+B*{alpha:.6f}",
+        if alpha <= 0.0:
+            return base_img
+        # Convert strip to RGBA and set its alpha to `alpha`, then overlay.
+        faded_strip = (
+            strip_frame
+            .filter("format", "rgba")
+            .filter("colorchannelmixer", aa=alpha)
         )
-        return blended
+        return base_img.overlay(faded_strip, format="auto")
 
     def apply_transition_overlay(self, base_img, strip_frame, frame):
         """Overlay *strip_frame* on *base_img* using the active transition.
