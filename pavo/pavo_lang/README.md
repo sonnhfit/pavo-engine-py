@@ -6,7 +6,6 @@
 
 ## Mục tiêu
 
-- Viết cú pháp gần với VideoFlow.
 - Tạo JSON chuẩn theo schema của `pavo.schema`.
 - Tách bước **author timeline** (DSL) và **render video** (`pavo.render_video`).
 
@@ -20,7 +19,7 @@
 - `addStrip(...)` (advanced)
 - `to_dict()`, `to_json()`, `save_json(path)`
 
-## Ví dụ giống VideoFlow
+## Ví dụ giống 
 
 ```python
 from pavo.pavo_lang import PavoVideo
