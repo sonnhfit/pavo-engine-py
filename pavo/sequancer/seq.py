@@ -746,11 +746,13 @@ class Sequence:
         width: Optional[int] = None,
         height: Optional[int] = None,
         fps: float = 25.0,
+        background: str = "#000000",
     ):
         self.n_frame = n_frame
         self.fps = fps
         self.width = width
         self.height = height
+        self.background = background
         self.final_frame_cache = []
         self.strips: List[Strip] = strips
         self.temp_dir = temp_dir
@@ -811,10 +813,30 @@ class Sequence:
     def overlay(self, img1, img2):
         return img1.overlay(img2)
 
+    def _create_base_frame(self):
+        if self.width is None or self.height is None:
+            return None
+        color = str(self.background or "#000000").strip()
+        if color.startswith("#"):
+            hex_color = color[1:]
+            if re.fullmatch(r"[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}", hex_color):
+                ffmpeg_color = f"0x{hex_color}"
+            else:
+                ffmpeg_color = "0x000000"
+        else:
+            ffmpeg_color = color
+        return ffmpeg.input(
+            f"color=c={ffmpeg_color}:size={self.width}x{self.height}:rate=1",
+            f="lavfi",
+            t=1,
+        )
+
     def render_strip_list(self, strips: List[Strip], frame: int):
         img = None
         for strip in strips:
             if strip.type in ("text", "subtitle"):
+                if img is None:
+                    img = self._create_base_frame()
                 if img is not None:
                     img = strip.apply_text(img, frame=frame, fps=self.fps)
             elif strip.type == "audio":
