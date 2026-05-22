@@ -1,5 +1,7 @@
 # Pavo Lang: Python DSL để tạo timeline JSON
 
+**English summary:** Use `PavoVideo` to build timeline JSON from Python, then export with `to_dict()/to_json()/save_json()` and render with `pavo.render_video`.
+
 `Pavo Lang` là một lớp DSL dựa trên Python, giúp người dùng tạo JSON hợp lệ cho Pavo Engine mà không cần viết JSON thủ công.
 
 ## 1) Ý tưởng

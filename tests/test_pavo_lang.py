@@ -20,17 +20,18 @@ class TestPavoLang:
         assert strips[0]["length"] == 24
         assert strips[0]["asset"]["animation"] == "fadeIn"
 
-        assert strips[1]["start"] == 69  # 24 + wait(45)
+        expected_second_start = 24 + round(1.5 * 30)
+        assert strips[1]["start"] == expected_second_start
         assert strips[1]["length"] == 24
         assert strips[1]["asset"]["animation"] == "fadeOut"
 
     def test_duration_units(self):
         video = PavoVideo(name="demo", width=1280, height=720, fps=25)
 
-        assert video.parse_duration("500ms", min_frames=0) == 12
-        assert video.parse_duration("1.2s", min_frames=0) == 30
-        assert video.parse_duration(10, min_frames=0) == 10
-        assert video.parse_duration(2.0, min_frames=0) == 50
+        assert video.parse_duration_to_frames("500ms", min_frames=0) == 12
+        assert video.parse_duration_to_frames("1.2s", min_frames=0) == 30
+        assert video.parse_duration_to_frames(10, min_frames=0) == 10
+        assert video.parse_duration_to_frames(2.0, min_frames=0) == 50
 
     def test_add_strip_advanced(self):
         video = PavoVideo(name="demo", width=1280, height=720, fps=25)

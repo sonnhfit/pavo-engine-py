@@ -1,5 +1,7 @@
 # Pavo Lang (Python DSL)
 
+**English summary:** Pavo Lang is a Python-first DSL for authoring schema-valid Pavo timeline JSON before rendering with `pavo.render_video`.
+
 `Pavo Lang` là DSL dựa trên Python để tạo timeline JSON hợp lệ cho Pavo Engine.
 
 ## Mục tiêu
