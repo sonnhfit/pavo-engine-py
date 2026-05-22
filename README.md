@@ -46,7 +46,7 @@ render_video(
 If you prefer writing timeline logic in Python (instead of hand-writing JSON), use:
 
 ```python
-from pavo.pavo_lang import PavoVideo
+from pavo.pavolang import PavoVideo
 ```
 
 `PavoVideo` generates schema-valid timeline JSON via `to_dict()`, `to_json()`, and `save_json(...)`.

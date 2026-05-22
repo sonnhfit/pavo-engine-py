@@ -21,7 +21,7 @@ Pavo Lang is a Python-first DSL for authoring schema-valid Pavo timeline JSON be
 ## Example
 
 ```python
-from pavo.pavo_lang import PavoVideo
+from pavo.pavolang import PavoVideo
 
 pavo = PavoVideo(
     name="My Video",

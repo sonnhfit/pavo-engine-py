@@ -11,7 +11,7 @@ Pavo Lang is a Python-based DSL for creating valid Pavo timeline JSON without ma
 ## 2) Import
 
 ```python
-from pavo.pavo_lang import PavoVideo
+from pavo.pavolang import PavoVideo
 ```
 
 ## 3) Core API
@@ -111,7 +111,7 @@ Supported duration formats:
 ## 6) Full Example
 
 ```python
-from pavo.pavo_lang import PavoVideo
+from pavo.pavolang import PavoVideo
 
 video = PavoVideo(
     name="My Video",

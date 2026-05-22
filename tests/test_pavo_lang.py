@@ -1,6 +1,6 @@
 import json
 
-from pavo.pavo_lang import PavoVideo
+from pavo.pavolang import PavoVideo
 
 
 class TestPavoLang:
