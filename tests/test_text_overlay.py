@@ -277,6 +277,30 @@ class TestSequenceRenderStripListText:
         result = seq.render_strip_list([text_strip], frame=0)
         assert result is None
 
+    def test_text_strip_applied_with_generated_base_when_dimensions_present(self):
+        """Text-only frames should render when output dimensions are known."""
+        text_strip = self._make_text_strip(content="Hello")
+        seq = Sequence(
+            strips=[],
+            n_frame=1,
+            temp_dir=self._tmpdir,
+            width=1920,
+            height=1080,
+        )
+
+        base_stream = MagicMock()
+        after_text = MagicMock()
+        base_stream.filter.return_value = after_text
+
+        with patch("pavo.sequancer.seq.ffmpeg.input", return_value=base_stream) as mock_input:
+            result = seq.render_strip_list([text_strip], frame=0)
+
+        mock_input.assert_called_once()
+        assert base_stream.filter.call_count == 1
+        assert base_stream.filter.call_args[0][0] == "drawtext"
+        assert base_stream.filter.call_args[1]["text"] == "Hello"
+        assert result is after_text
+
     def test_multiple_text_strips_all_applied(self):
         """Multiple text strips are all applied as drawtext layers."""
         image_stream = MagicMock()

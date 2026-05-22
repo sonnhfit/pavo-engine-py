@@ -116,10 +116,12 @@ def init_sequence(file_path, temp_dir="temp"):
     json_data = read_json_video(file_path)
     strips = get_strips_from_json(json_data)
     n_frame = _auto_n_frames(json_data)
+    timeline = json_data.get("timeline") or {}
     output = json_data.get("output") or {}
     width = output.get("width")
     height = output.get("height")
     fps = float(output.get("fps", 25.0))
+    background = timeline.get("background", "#000000")
     seq = Sequence(
         strips=strips,
         n_frame=n_frame,
@@ -127,6 +129,7 @@ def init_sequence(file_path, temp_dir="temp"):
         width=width,
         height=height,
         fps=fps,
+        background=background,
     )
     return seq
 
