@@ -1,14 +1,12 @@
-# Pavo Lang: Python DSL để tạo timeline JSON
+# Pavo Lang: Python DSL for Timeline JSON
 
-**English summary:** Use `PavoVideo` to build timeline JSON from Python, then export with `to_dict()/to_json()/save_json()` and render with `pavo.render_video`.
+Pavo Lang is a Python-based DSL for creating valid Pavo timeline JSON without manually writing raw JSON.
 
-`Pavo Lang` là một lớp DSL dựa trên Python, giúp người dùng tạo JSON hợp lệ cho Pavo Engine mà không cần viết JSON thủ công.
+## 1) Goal
 
-## 1) Ý tưởng
-
-- Viết timeline bằng Python (dễ đọc, dễ tái sử dụng).
-- DSL sẽ sinh ra JSON đúng schema của `pavo.schema`.
-- Sau đó dùng `render_video(json_path, mp4_path)` để render.
+- Author timelines with readable Python code.
+- Generate JSON that matches `pavo.schema`.
+- Separate timeline authoring from rendering.
 
 ## 2) Import
 
@@ -16,7 +14,7 @@
 from pavo.pavo_lang import PavoVideo
 ```
 
-## 3) API cốt lõi
+## 3) Core API
 
 ### `PavoVideo(...)`
 
@@ -24,10 +22,10 @@ from pavo.pavo_lang import PavoVideo
 PavoVideo(name, width, height, fps=25, background="#000000")
 ```
 
-- `name`: tên project/video
-- `width`, `height`: độ phân giải output
-- `fps`: frame rate
-- `background`: màu nền hex
+- `name`: video/project name
+- `width`, `height`: output resolution
+- `fps`: frames per second
+- `background`: hex background color
 
 ### `addText(...)`
 
@@ -43,7 +41,7 @@ node = video.addText(
 )
 ```
 
-Trả về object `PavoText`, dùng để gọi `.animate(...)`.
+Returns a `PavoText` object that supports `.animate(...)`.
 
 ### `PavoText.animate(from_state, to_state, options)`
 
@@ -55,8 +53,8 @@ node.animate(
 )
 ```
 
-- Mỗi lần `animate` sẽ tạo 1 strip trên timeline.
-- Playhead tự động tiến thêm `duration`.
+- Each `animate` call adds one strip to the timeline.
+- The playhead advances automatically by `duration`.
 
 ### `wait(duration)`
 
@@ -64,7 +62,7 @@ node.animate(
 video.wait("1.5s")
 ```
 
-Di chuyển playhead mà không thêm strip.
+Moves the playhead forward without adding a strip.
 
 ### `setSoundtrack(...)`
 
@@ -83,34 +81,34 @@ video.addStrip(
 )
 ```
 
-Dùng khi cần toàn quyền tạo strip theo schema.
+Use this when you want full control over strip data.
 
 ### Export
 
 ```python
-payload = video.to_dict()      # dict đã validate schema
+payload = video.to_dict()      # validated dict
 text = video.to_json()         # JSON string
 video.save_json("timeline.json")
 ```
 
-## 4) Duration rules
+## 4) Duration Rules
 
-DSL hỗ trợ 3 kiểu duration:
+Supported duration formats:
 
 - `"1.5s"` (seconds)
 - `"800ms"` (milliseconds)
 - `float` (seconds)
 - `int` (frames)
 
-## 5) Mapping animation hiện tại
+## 5) Current Animation Mapping
 
-`animate(from_state, to_state, ...)` được map sang field `asset.animation`:
+`animate(from_state, to_state, ...)` maps to `asset.animation` as follows:
 
 - `opacity: 0 -> 1` => `fadeIn`
 - `opacity: 1 -> 0` => `fadeOut`
 - `x:* -> 0` => `slideInLeft`
 
-## 6) Ví dụ hoàn chỉnh 
+## 6) Full Example
 
 ```python
 from pavo.pavo_lang import PavoVideo
@@ -144,7 +142,7 @@ title.animate(
 video.save_json("./hello.json")
 ```
 
-Sau đó render:
+Then render:
 
 ```python
 from pavo import render_video

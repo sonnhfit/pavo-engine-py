@@ -105,7 +105,7 @@ class PavoVideo:
         if font:
             asset["font"] = font
 
-        # Keep fontWeight in DSL for parity with VideoFlow; renderer currently
+        # Keep fontWeight in DSL for API parity; renderer currently
         # controls visual weight primarily through chosen font files.
         if fontWeight is not None:
             asset["font_weight"] = fontWeight

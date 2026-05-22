@@ -1,15 +1,14 @@
 # Pavo Lang (Python DSL)
 
-**English summary:** Pavo Lang is a Python-first DSL for authoring schema-valid Pavo timeline JSON before rendering with `pavo.render_video`.
+Pavo Lang is a Python-first DSL for authoring schema-valid Pavo timeline JSON before rendering with `pavo.render_video`.
 
-`Pavo Lang` là DSL dựa trên Python để tạo timeline JSON hợp lệ cho Pavo Engine.
+## Goal
 
-## Mục tiêu
+- Write timeline logic in Python.
+- Generate JSON that matches `pavo.schema`.
+- Keep authoring and rendering as separate steps.
 
-- Tạo JSON chuẩn theo schema của `pavo.schema`.
-- Tách bước **author timeline** (DSL) và **render video** (`pavo.render_video`).
-
-## API chính
+## Core API
 
 - `PavoVideo(name, width, height, fps=25, background="#000000")`
 - `addText(...) -> PavoText`
@@ -19,7 +18,7 @@
 - `addStrip(...)` (advanced)
 - `to_dict()`, `to_json()`, `save_json(path)`
 
-## Ví dụ giống 
+## Example
 
 ```python
 from pavo.pavo_lang import PavoVideo
@@ -32,7 +31,7 @@ pavo = PavoVideo(
 )
 
 title = pavo.addText(
-    text="Hello, VideoFlow!",
+    text="Hello, Pavo!",
     fontSize=72,
     fontWeight=800,
     color="#ffffff",
@@ -52,25 +51,23 @@ title.animate(
     {"duration": "0.8s"},
 )
 
-# xuất ra JSON timeline
+# export timeline JSON
 pavo.save_json("./hello.json")
 ```
 
-## Quy ước duration
+## Duration Rules
 
-- `"1.5s"`, `"800ms"` → đổi sang frame theo `fps`.
-- `float` → hiểu là giây.
-- `int` → hiểu là số frame.
+- `"1.5s"`, `"800ms"` are converted to frames using `fps`.
+- `float` values are interpreted as seconds.
+- `int` values are interpreted as frames.
 
-## Mapping animation hiện tại
+## Current Animation Mapping
 
-- `opacity: 0 -> 1` → `fadeIn`
-- `opacity: 1 -> 0` → `fadeOut`
-- `x:* -> 0` → `slideInLeft`
+- `opacity: 0 -> 1` => `fadeIn`
+- `opacity: 1 -> 0` => `fadeOut`
+- `x:* -> 0` => `slideInLeft`
 
-Các state khác được giữ ở mức DSL (không ép vào schema animation nếu không có mapping trực tiếp).
-
-## Render video từ JSON
+## Render from JSON
 
 ```python
 from pavo import render_video
