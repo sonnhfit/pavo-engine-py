@@ -110,7 +110,7 @@ DSL hỗ trợ 3 kiểu duration:
 - `opacity: 1 -> 0` => `fadeOut`
 - `x:* -> 0` => `slideInLeft`
 
-## 6) Ví dụ hoàn chỉnh (theo style VideoFlow)
+## 6) Ví dụ hoàn chỉnh 
 
 ```python
 from pavo.pavo_lang import PavoVideo
@@ -123,7 +123,7 @@ video = PavoVideo(
 )
 
 title = video.addText(
-    text="Hello, VideoFlow!",
+    text="Hello, Pavo!",
     fontSize=72,
     fontWeight=800,
     color="#ffffff",
