@@ -26,7 +26,7 @@ class PavoText:
     ) -> "PavoText":
         """Append a text strip with inferred animation and advance the playhead."""
         options = options or {}
-        duration_frames = self._video._parse_duration(options.get("duration", "0.5s"), min_frames=1)
+        duration_frames = self._video.parse_duration(options.get("duration", "0.5s"), min_frames=1)
 
         asset = dict(self._asset)
         animation = self._infer_animation(from_state or {}, to_state or {})
@@ -112,7 +112,7 @@ class PavoVideo:
 
     def wait(self, duration: Any) -> "PavoVideo":
         """Move the global playhead forward by ``duration``."""
-        self.cursor += self._parse_duration(duration, min_frames=0)
+        self.cursor += self.parse_duration(duration, min_frames=0)
         return self
 
     def setSoundtrack(self, *, src: str, effect: Optional[str] = None) -> "PavoVideo":
@@ -127,8 +127,8 @@ class PavoVideo:
             track_id=trackId,
             strip={
                 "asset": asset,
-                "start": self._parse_duration(start, min_frames=0),
-                "length": self._parse_duration(length, min_frames=1),
+                "start": self.parse_duration(start, min_frames=0),
+                "length": self.parse_duration(length, min_frames=1),
             },
         )
         return self
@@ -172,7 +172,7 @@ class PavoVideo:
             self._tracks[track_id] = []
         self._tracks[track_id].append(strip)
 
-    def _parse_duration(self, value: Any, *, min_frames: int) -> int:
+    def parse_duration(self, value: Any, *, min_frames: int = 0) -> int:
         if isinstance(value, int):
             frames = value
         elif isinstance(value, float):

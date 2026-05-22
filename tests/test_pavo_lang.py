@@ -27,10 +27,10 @@ class TestPavoLang:
     def test_duration_units(self):
         video = PavoVideo(name="demo", width=1280, height=720, fps=25)
 
-        assert video._parse_duration("500ms", min_frames=0) == 12
-        assert video._parse_duration("1.2s", min_frames=0) == 30
-        assert video._parse_duration(10, min_frames=0) == 10
-        assert video._parse_duration(2.0, min_frames=0) == 50
+        assert video.parse_duration("500ms", min_frames=0) == 12
+        assert video.parse_duration("1.2s", min_frames=0) == 30
+        assert video.parse_duration(10, min_frames=0) == 10
+        assert video.parse_duration(2.0, min_frames=0) == 50
 
     def test_add_strip_advanced(self):
         video = PavoVideo(name="demo", width=1280, height=720, fps=25)
