@@ -1,0 +1,56 @@
+{
+  "timeline": {
+    "n_frames": 93,
+    "background": "#000000",
+    "tracks": [
+      {
+        "track_id": 0,
+        "strips": [
+          {
+            "asset": {
+              "type": "text",
+              "content": "Hello, Pavo!",
+              "size": 72,
+              "color": "#ffffff",
+              "position": {
+                "x": "center",
+                "y": "center"
+              },
+              "animation": "fadeIn",
+              "loop": false
+            },
+            "start": 0,
+            "length": 24,
+            "video_start_frame": 0
+          },
+          {
+            "asset": {
+              "type": "text",
+              "content": "Hello, Pavo!",
+              "size": 72,
+              "color": "#ffffff",
+              "position": {
+                "x": "center",
+                "y": "center"
+              },
+              "animation": "fadeOut",
+              "loop": false
+            },
+            "start": 69,
+            "length": 24,
+            "video_start_frame": 0
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "fps": 30.0,
+    "width": 1920,
+    "height": 1080,
+    "audio_ducking": false,
+    "ducking_reduction_db": 10.0,
+    "workers": 1
+  }
+}
