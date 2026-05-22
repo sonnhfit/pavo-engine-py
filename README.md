@@ -41,6 +41,17 @@ render_video(
 )
 ```
 
+### Python DSL (`Pavo Lang`) for JSON Authoring
+
+If you prefer writing timeline logic in Python (instead of hand-writing JSON), use:
+
+```python
+from pavo.pavo_lang import PavoVideo
+```
+
+`PavoVideo` generates schema-valid timeline JSON via `to_dict()`, `to_json()`, and `save_json(...)`.
+See full guide: `docs/jsonreadme.md`.
+
 ### Sample Timeline JSON
 
 Save the following as `timeline.json` and pass its path to `render_video`:
