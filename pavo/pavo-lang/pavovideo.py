@@ -1,0 +1,2 @@
+class PavoVideo:
+    pass
