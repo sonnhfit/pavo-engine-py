@@ -56,7 +56,7 @@ class TestPavoLang:
         assert data["timeline"]["soundtrack"] == {"src": "music.mp3", "effect": "fadeOut"}
 
     def test_save_json(self, tmp_path):
-        video = PavoVideo(name="demo", width=1280, height=720, fps=25)
+        video = PavoVideo(name="demo", width=1280, height=720, fps=25.0)
         title = video.addText(text="Hi")
         title.animate({"opacity": 0}, {"opacity": 1}, {"duration": "1s"})
 

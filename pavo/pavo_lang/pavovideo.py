@@ -53,7 +53,9 @@ class PavoText:
             return "fadeIn"
         if start_opacity == 1 and end_opacity == 0:
             return "fadeOut"
-        if from_state.get("x") is not None and to_state.get("x") == 0:
+        start_x = from_state.get("x")
+        end_x = to_state.get("x")
+        if start_x not in (None, 0, "center") and end_x in (0, "center") and start_x != end_x:
             return "slideInLeft"
         return None
 
