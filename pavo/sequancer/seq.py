@@ -816,8 +816,15 @@ class Sequence:
     def _create_base_frame(self):
         if self.width is None or self.height is None:
             return None
-        hex_color = str(self.background or "#000000").lstrip("#")
-        ffmpeg_color = f"0x{hex_color}"
+        color = str(self.background or "#000000").strip()
+        if color.startswith("#"):
+            hex_color = color[1:]
+            if re.fullmatch(r"[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}", hex_color):
+                ffmpeg_color = f"0x{hex_color}"
+            else:
+                ffmpeg_color = "0x000000"
+        else:
+            ffmpeg_color = color
         return ffmpeg.input(
             f"color=c={ffmpeg_color}:size={self.width}x{self.height}:rate=1",
             f="lavfi",
