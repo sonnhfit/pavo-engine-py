@@ -43,7 +43,7 @@ render_video(
 
 ### Python DSL (`Pavo Lang`) for JSON Authoring
 
-If you prefer writing timeline logic in Python (instead of hand-writing JSON), use:
+Pavo Lang is a Python-first DSL for building schema-valid timeline JSON without hand-writing raw JSON. Use it to author timelines in readable Python code, then render with `render_video`.
 
 ```python
 from pavo.pavolang import PavoVideo
@@ -51,6 +51,159 @@ from pavo.pavolang import PavoVideo
 
 `PavoVideo` generates schema-valid timeline JSON via `to_dict()`, `to_json()`, and `save_json(...)`.
 See full guide: `docs/jsonreadme.md`.
+
+#### `PavoVideo` — Constructor
+
+```python
+PavoVideo(
+    name,            # project/video name (str)
+    width,           # output width in pixels (int)
+    height,          # output height in pixels (int)
+    fps=25,          # frames per second (float, default 25)
+    background="#000000",  # hex background color (str)
+)
+```
+
+#### `addText(...)` — Add a Text Node
+
+```python
+node = video.addText(
+    text="Hello, Pavo!",  # text content (str)
+    fontSize=72,           # font size in px (int, default 24)
+    fontWeight=800,        # font weight hint (int, optional)
+    color="#ffffff",       # color name or hex (str, default "white")
+    x="center",            # x position – number or "center" (default "center")
+    y="center",            # y position – number or "center" (default "center")
+    trackId=0,             # timeline track (int, default 0)
+    font=None,             # path to .ttf/.otf font file (str, optional)
+)
+```
+
+Returns a `PavoText` object that exposes `.animate(...)`.
+
+#### `PavoText.animate(from_state, to_state, options)` — Animate a Text Node
+
+```python
+node.animate(
+    {"opacity": 0, "scale": 0.8},   # from state
+    {"opacity": 1, "scale": 1},     # to state
+    {"duration": "0.8s"},           # options dict (duration required)
+)
+```
+
+Each call appends one strip to the timeline and advances the global playhead by `duration`.
+
+#### `wait(duration)` — Advance Playhead
+
+```python
+video.wait("1.5s")   # move playhead forward without adding a strip
+```
+
+#### `setSoundtrack(...)` — Add Background Music
+
+```python
+video.setSoundtrack(src="path/to/music.mp3", effect="fadeOut")
+```
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `src` | `str` | ✅ | Path or URL to audio file |
+| `effect` | `str` | ❌ | e.g. `"fadeOut"` |
+
+#### `addStrip(...)` — Low-level Strip API
+
+For full control over any strip type (image, video, subtitle, etc.):
+
+```python
+video.addStrip(
+    trackId=1,
+    start="2s",       # start position – duration string, float (s), or int (frames)
+    length="3s",      # strip length – duration string, float (s), or int (frames)
+    asset={
+        "type": "image",
+        "src": "assets/intro.jpg",
+    },
+)
+```
+
+#### Export Methods
+
+```python
+payload = video.to_dict()           # validated Python dict
+text    = video.to_json()           # JSON string (indent=2)
+video.save_json("timeline.json")    # write JSON to file
+```
+
+#### Duration Rules
+
+All duration parameters accept the following formats:
+
+| Format | Example | Interpretation |
+|---|---|---|
+| Seconds string | `"1.5s"` | Converted to frames via `fps` |
+| Milliseconds string | `"800ms"` | Converted to frames via `fps` |
+| `float` | `1.5` | Interpreted as seconds |
+| `int` | `38` | Interpreted as frames (directly) |
+
+#### Animation Mapping
+
+`animate(from_state, to_state)` inspects the state objects and picks the closest named animation:
+
+| Transition | Result |
+|---|---|
+| `opacity: 0 → 1` | `"fadeIn"` |
+| `opacity: 1 → 0` | `"fadeOut"` |
+| `x: non-zero/non-center → 0 or "center"` | `"slideInLeft"` |
+
+#### Full Pavo Lang Example
+
+```python
+from pavo.pavolang import PavoVideo
+from pavo import render_video
+
+# 1. Author the timeline
+video = PavoVideo(
+    name="Intro Video",
+    width=1920,
+    height=1080,
+    fps=30,
+    background="#1a1a2e",
+)
+
+video.setSoundtrack(src="assets/music.mp3", effect="fadeOut")
+
+# Fade-in title
+title = video.addText(
+    text="Hello, Pavo!",
+    fontSize=72,
+    fontWeight=800,
+    color="#ffffff",
+    x="center",
+    y="center",
+    trackId=1,
+)
+title.animate({"opacity": 0, "scale": 0.8}, {"opacity": 1, "scale": 1}, {"duration": "0.8s"})
+
+# Hold for 1.5 s
+video.wait("1.5s")
+
+# Fade-out title
+title.animate({"opacity": 1, "scale": 1}, {"opacity": 0, "scale": 1.2}, {"duration": "0.8s"})
+
+# Add a video clip on a separate track using the low-level API
+video.addStrip(
+    trackId=0,
+    start=0,
+    length="3s",
+    asset={"type": "video", "src": "assets/clip.mp4"},
+)
+
+# 2. Save timeline JSON
+video.save_json("./timeline.json")
+
+# 3. Render to MP4
+render_video("./timeline.json", "./output.mp4")
+```
 
 ### Sample Timeline JSON
 
