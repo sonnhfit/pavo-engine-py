@@ -81,6 +81,31 @@ node = video.addText(
 
 Returns a `PavoText` object that exposes `.animate(...)`.
 
+#### `addSubtitle(...)` — Add Smart Subtitle Node
+
+```python
+subtitle = video.addSubtitle(
+    text="Xin chào từ Pavo",            # subtitle content
+    fontSize=42,                         # default subtitle size
+    color="white",                       # subtitle text color
+    trackId=1,                           # default above base video track
+    font=None,                           # optional .ttf/.otf path
+    backgroundColor="black@0.55",        # subtitle box color for readability
+    strokeColor="black",                 # text outline color
+    strokeWidth=2,                       # outline width
+    lineSpacing=None,                    # optional multi-line spacing
+    x=None,                              # optional custom x override
+    y=None,                              # optional custom y override
+)
+```
+
+Default auto-position logic:
+
+- **Landscape video** (`width >= height`): bottom center, with ~8% bottom margin (`x="center"` and computed `y`)
+- **Portrait video** (`height > width`): center-lower safe zone (`x="center"` and `y≈55%` of height)
+
+You can always override `x`/`y` manually when needed.
+
 #### `PavoText.animate(from_state, to_state, options)` — Animate a Text Node
 
 ```python
@@ -183,6 +208,15 @@ title = video.addText(
     trackId=1,
 )
 title.animate({"opacity": 0, "scale": 0.8}, {"opacity": 1, "scale": 1}, {"duration": "0.8s"})
+
+# Smart subtitle placement (auto adapts to landscape/portrait output)
+subtitle = video.addSubtitle(
+    text="Welcome to Pavo Engine",
+    backgroundColor="black@0.6",
+    font="assets/fonts/Inter-SemiBold.ttf",
+    trackId=2,
+)
+subtitle.animate({"opacity": 0}, {"opacity": 1}, {"duration": "1.2s"})
 
 # Hold for 1.5 s
 video.wait("1.5s")

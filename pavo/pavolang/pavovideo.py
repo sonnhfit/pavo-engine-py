@@ -112,6 +112,53 @@ class PavoVideo:
 
         return PavoText(video=self, asset=asset, track_id=trackId)
 
+    def addSubtitle(
+        self,
+        *,
+        text: str,
+        fontSize: int = 42,
+        color: str = "white",
+        trackId: int = 1,
+        font: Optional[str] = None,
+        fontWeight: Optional[int] = None,
+        x: Any = None,
+        y: Any = None,
+        backgroundColor: Optional[str] = "black@0.55",
+        strokeColor: Optional[str] = "black",
+        strokeWidth: Optional[int] = 2,
+        lineSpacing: Optional[int] = None,
+    ) -> PavoText:
+        """Create a subtitle node with orientation-aware default placement."""
+        if x is None or y is None:
+            auto_position = self._default_subtitle_position(font_size=fontSize)
+            if x is None:
+                x = auto_position["x"]
+            if y is None:
+                y = auto_position["y"]
+
+        asset: Dict[str, Any] = {
+            "type": "subtitle",
+            "content": text,
+            "size": fontSize,
+            "color": color,
+            "position": {"x": x, "y": y},
+        }
+
+        if backgroundColor is not None:
+            asset["background_color"] = backgroundColor
+        if font:
+            asset["font"] = font
+        if fontWeight is not None:
+            asset["font_weight"] = fontWeight
+        if strokeColor:
+            asset["stroke_color"] = strokeColor
+        if strokeWidth is not None:
+            asset["stroke_width"] = strokeWidth
+        if lineSpacing is not None:
+            asset["line_spacing"] = lineSpacing
+
+        return PavoText(video=self, asset=asset, track_id=trackId)
+
     def wait(self, duration: Any) -> "PavoVideo":
         """Move the global playhead forward by ``duration``."""
         self.cursor += self.parse_duration_to_frames(duration, min_frames=0)
@@ -199,3 +246,13 @@ class PavoVideo:
     def parse_duration(self, value: Any, *, min_frames: int = 0) -> int:
         """Backward-compatible alias for :meth:`parse_duration_to_frames`."""
         return self.parse_duration_to_frames(value, min_frames=min_frames)
+
+    def _default_subtitle_position(self, *, font_size: int) -> Dict[str, Any]:
+        """Return default subtitle coordinates based on output orientation."""
+        if self.height > self.width:
+            # Vertical video: keep subtitles in the safe center-lower region.
+            return {"x": "center", "y": round(self.height * 0.55)}
+        # Horizontal video: bottom-center with margin from progress bars/UI.
+        margin = round(self.height * 0.08)
+        size = max(1, int(font_size))
+        return {"x": "center", "y": max(0, self.height - margin - size)}

@@ -67,3 +67,56 @@ class TestPavoLang:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["output"]["fps"] == 25.0
         assert payload["timeline"]["tracks"][0]["strips"][0]["asset"]["content"] == "Hi"
+
+    def test_add_subtitle_landscape_defaults(self):
+        video = PavoVideo(name="demo", width=1920, height=1080, fps=30)
+        subtitle = video.addSubtitle(text="Hello subtitle")
+
+        subtitle.animate({"opacity": 0}, {"opacity": 1}, {"duration": "1s"})
+        asset = video.to_dict()["timeline"]["tracks"][0]["strips"][0]["asset"]
+
+        assert asset["type"] == "subtitle"
+        assert asset["content"] == "Hello subtitle"
+        assert asset["position"] == {"x": "center", "y": 952}
+        assert asset["background_color"] == "black@0.55"
+        assert asset["stroke_color"] == "black"
+        assert asset["stroke_width"] == 2
+
+    def test_add_subtitle_portrait_defaults(self):
+        video = PavoVideo(name="demo", width=1080, height=1920, fps=30)
+        subtitle = video.addSubtitle(text="Hello portrait")
+
+        subtitle.animate({"opacity": 0}, {"opacity": 1}, {"duration": "1s"})
+        asset = video.to_dict()["timeline"]["tracks"][0]["strips"][0]["asset"]
+
+        assert asset["position"] == {"x": "center", "y": 1056}
+
+    def test_add_subtitle_style_and_position_overrides(self):
+        video = PavoVideo(name="demo", width=1080, height=1920, fps=30)
+        subtitle = video.addSubtitle(
+            text="Styled subtitle",
+            fontSize=36,
+            color="#ffeeaa",
+            font="assets/fonts/Inter-Bold.ttf",
+            backgroundColor="#000000AA",
+            strokeColor="#111111",
+            strokeWidth=3,
+            lineSpacing=6,
+            x=120,
+            y=900,
+            trackId=3,
+        )
+
+        subtitle.animate({"opacity": 0}, {"opacity": 1}, {"duration": "1s"})
+        track = video.to_dict()["timeline"]["tracks"][0]
+        asset = track["strips"][0]["asset"]
+
+        assert track["track_id"] == 3
+        assert asset["size"] == 36
+        assert asset["color"] == "#ffeeaa"
+        assert asset["font"] == "assets/fonts/Inter-Bold.ttf"
+        assert asset["background_color"] == "#000000AA"
+        assert asset["stroke_color"] == "#111111"
+        assert asset["stroke_width"] == 3
+        assert asset["line_spacing"] == 6
+        assert asset["position"] == {"x": 120, "y": 900}
