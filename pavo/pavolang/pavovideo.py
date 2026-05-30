@@ -8,6 +8,8 @@ from typing import Any, Dict, Optional
 from pavo.schema import validate_timeline_json
 
 _DURATION_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(ms|s)?\s*$")
+LANDSCAPE_SUBTITLE_BOTTOM_MARGIN_RATIO = 0.08
+PORTRAIT_SUBTITLE_VERTICAL_RATIO = 0.55
 
 
 class PavoText:
@@ -150,7 +152,7 @@ class PavoVideo:
             asset["font"] = font
         if fontWeight is not None:
             asset["font_weight"] = fontWeight
-        if strokeColor:
+        if strokeColor is not None:
             asset["stroke_color"] = strokeColor
         if strokeWidth is not None:
             asset["stroke_width"] = strokeWidth
@@ -251,8 +253,8 @@ class PavoVideo:
         """Return default subtitle coordinates based on output orientation."""
         if self.height > self.width:
             # Vertical video: keep subtitles in the safe center-lower region.
-            return {"x": "center", "y": round(self.height * 0.55)}
+            return {"x": "center", "y": round(self.height * PORTRAIT_SUBTITLE_VERTICAL_RATIO)}
         # Horizontal video: bottom-center with margin from progress bars/UI.
-        margin = round(self.height * 0.08)
-        size = max(1, int(font_size))
-        return {"x": "center", "y": max(0, self.height - margin - size)}
+        margin = round(self.height * LANDSCAPE_SUBTITLE_BOTTOM_MARGIN_RATIO)
+        font_size_pixels = max(1, int(font_size))
+        return {"x": "center", "y": max(0, self.height - margin - font_size_pixels)}
